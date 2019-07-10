@@ -88,6 +88,9 @@ class IntegrationBase {
         sum_dt_{0.0},
         delta_p_{Vector3d::Zero()},
         delta_q_{Quaterniond::Identity()},
+        //delta_q_{0.999051,0.000642436,0.0435542,-0.000410389},//5
+       //delta_q_{0.999051,-0.000680734,-0.0435536,0.000468073},//-5
+        //delta_q_{0.999051,0.0435542,0.000642436,-0.000410389},
         delta_v_{Vector3d::Zero()} {
     config_ = config;
     g_vec_ = Vector3d(0, 0, -config_.g_norm);
@@ -101,7 +104,13 @@ class IntegrationBase {
     noise_.block<3, 3>(15, 15) = (config_.gyr_w * config_.gyr_w) * Matrix3d::Identity();
   }
 
-//存入imu数据，进行预积分
+/*
+ * function : 存入imu数据，进行预积分
+ * param : 
+ *    acc---线加速度
+ *    gyr---角速度
+ * 主要函数： propagate(dt,acc,gyr)积分
+ */
   void push_back(double dt, const Vector3d &acc, const Vector3d &gyr) {
     dt_buf_.push_back(dt);
     acc_buf_.push_back(acc);
@@ -117,6 +126,14 @@ class IntegrationBase {
     gyr0_ = linearized_gyr_;
     delta_p_.setZero();
     delta_q_.setIdentity();
+//      Eigen::Matrix3d a;
+// //     a<<0.996206,0.000875961,0.0870252,  //5
+// //           -0.000764038,0.999999,-0.0013194,
+// //           -0.0870263,0.0012479,0.996205;
+//     a<<0.996206,-0.000875961,-0.0870252,  //-5
+//          0.000994554,0.999999,0.0013194,
+//          0.0870239,-0.00140095,0.996205;
+//      delta_q_=Eigen::Quaterniond(a);
     delta_v_.setZero();
     linearized_ba_ = linearized_ba;
     linearized_bg_ = linearized_bg;
@@ -127,7 +144,22 @@ class IntegrationBase {
     }
   }
 
- //调用中值离散积分
+ 
+ /*
+  * function: 中值离散积分计算imu的增量
+  * param：
+  *   acc --- i,i+1时刻的线性加速度
+  *   gyr --- i,i+1时刻的角速度
+  *   delta_p --- 位置变化量
+  *   delta_q --- 角度变化量
+  *   delta_v --- 速度变化量
+  *   ba      --- 偏差
+  *   bg      --- 偏差
+  *   result_delta_p --- 
+  *   result_delta_q ---
+  *   result_delta_v ---
+  * 同时进行雅克比矩阵的更新，紧耦合需要用到
+  */
   void MidPointIntegration(double dt,
                            const Vector3d &acc0, const Vector3d &gyr0,
                            const Vector3d &acc1, const Vector3d &gyr1,

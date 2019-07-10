@@ -93,8 +93,15 @@ PointProcessor::PointProcessor(float lower_bound, float upper_bound, int num_rin
   }
 }
 
-//处理流程：  计算索引--提取特征--发布消息
-//一是按照不同线，将点云保存在点云指针中；二是对其进行特征分类。
+/*
+ * function:      
+ *     对激光数据进行处理。
+ *    处理流程： 
+ *         （1） 计算索引：按照不同线，将点云保存在点云指针中
+ *         （2）提取特征：是对其进行特征分类
+ *         （3）发布消息
+ * 参考loam scanregistration.cpp
+ */
 void PointProcessor::Process() {
   PointToRing();
   ExtractFeaturePoints();
@@ -205,7 +212,12 @@ void PointProcessor::PointToRing() {
   ROS_DEBUG_STREAM("point size: " << cloud_in_rings_.size());
 
 }
-//scanregistration.cpp
+
+
+/*
+ * function: 接收点云数据，扫描线旋转过半问题等
+ * reference： loam void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloudMsg)
+ */
 void PointProcessor::PointToRing(const PointCloudConstPtr &cloud_in,
                                  vector<PointCloudPtr> &ring_out,
                                  vector<PointCloudPtr> &intensity_out) {
@@ -586,6 +598,9 @@ void PointProcessor::PrepareRing(const PointCloud &scan) {
   }
 }
 
+/*
+ * function : calculate the curvature and sort
+ */
 void PointProcessor::PrepareSubregion(const PointCloud &scan, const size_t idx_start, const size_t idx_end) {
 
 //  cout << ">>>>>>> " << idx_ring << ", " << idx_start << ", " << idx_end << " <<<<<<<" << endl;
@@ -645,7 +660,10 @@ void PointProcessor::MaskPickedInRing(const PointCloud &scan, const size_t in_sc
     scan_ring_mask_[in_scan_idx - i] = 1;
   }
 }
-//提取特征点
+
+/*
+ * function : curvature calculate and extract the features
+ */
 void PointProcessor::ExtractFeaturePoints() {
 
   tic_toc_.Tic();

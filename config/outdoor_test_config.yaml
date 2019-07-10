@@ -4,10 +4,12 @@ min_plane_dis: 0.2
 
 min_match_sq_dis: 1.0
 
-corner_filter_size: 0.2
-surf_filter_size: 0.4
-map_filter_size: 0.6
-
+#corner_filter_size: 0.2
+#surf_filter_size: 0.4
+#map_filter_size: 0.6
+corner_filter_size: 0.4
+surf_filter_size: 0.6
+map_filter_size: 0.8
 # window sizes
 window_size: 7
 opt_window_size: 5
@@ -24,16 +26,47 @@ extrinsic_rotation: !!opencv-matrix
   rows: 3
   cols: 3
   dt: d
+#  data: [0.707107,0,-0.707107,
+#         0,1,0,
+#         0.707107,0,0.707107]  #-45du
+#  data: [0.707107,0,0.707107,
+#         0,1,0,
+#         -0.707107,0,0.707107]  #45du
+#  data: [0.996206,-0.000875961,-0.0870252,
+#         0.000994554,0.999999,0.0013194,
+#         0.0870239,-0.00140095,0.996205] #-5du
+#  data: [0.996206,0.000875961,0.0870252,
+#         -0.000764038,0.999999,-0.0013194,
+#         -0.0870263,0.0012479,0.996205]   #5度imu
+#  data: [0.999999,0.000879296,0.00132443,
+#         -0.000760702,0.996206,-0.0870251,
+#         -0.00139592,0.087024,0.996205]#y5
+#  data: [ 0.777848,0.628268,0.0152024,
+#         -0.623886,0.774881,-0.101612,
+#         -0.0756195,0.0695538,0.994708]
   data: [1,  0,  0,
          0,  1,  0,
          0,  0,  1]
+#  data: [0.0254651,0.998924,-0.0387631,
+#            -0.999661  , 0.0252385, -0.00632322,
+#           -0.0053381 ,   0.038911  ,  0.999228]
+#  data: [ 0.908849,-0.41536,0.0383384,
+#          0.415794,0.909451, -0.00374099,
+#          -0.033313,0.0193408,0.999258]
+
+
+
+
+
+
  
  #Translation from imu frame to laser frame, laser^T_imu
 extrinsic_translation: !!opencv-matrix
   rows: 3
   cols: 1
   dt: d
-  data: [-2.4, 0, 0.7]
+  data: [0,0,0]
+#  data: [0,-0.46,-1.8]
 
 # optimization options
 run_optimization: 1

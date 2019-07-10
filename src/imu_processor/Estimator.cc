@@ -194,7 +194,7 @@ void Estimator::SetupAllEstimatorConfig(const EstimatorConfig &config, const Mea
   min_match_sq_dis_ = config.min_match_sq_dis;
   min_plane_dis_ = config.min_plane_dis;
   extrinsic_stage_ = config.estimate_extrinsic;
-
+//imu_factor == 1, bu jin ru 
   if (!config.imu_factor) {
     this->mm_config_.enable_imu = false;
     if (!first_imu_) {
@@ -289,9 +289,9 @@ void Estimator::ClearState() {
 //设置ros
 void Estimator::SetupRos(ros::NodeHandle &nh) {
   MeasurementManager::SetupRos(nh);
-  PointMapping::SetupRos(nh, false);
+//  PointMapping::SetupRos(nh, false);
 
-  wi_trans_.frame_id_ = "/camera_init";
+  wi_trans_.frame_id_ = "/camera_init";//起始点，
   wi_trans_.child_frame_id_ = "/world";
 
   wi_trans_.setRotation(tf::Quaternion(0, 0, 0, 1));
@@ -307,6 +307,7 @@ void Estimator::SetupRos(ros::NodeHandle &nh) {
   laser_predict_trans_.child_frame_id_ = "/laser_predict";
   laser_predict_trans_.setIdentity();
 
+//  predict_odom_.header.frame_id = "/camera_init";
   predict_odom_.header.frame_id = "/world";
   predict_odom_.child_frame_id = "/imu_predict";
   pub_predict_odom_ = nh.advertise<nav_msgs::Odometry>("/predict_odom", 100);
@@ -343,7 +344,7 @@ void Estimator::SetupRos(ros::NodeHandle &nh) {
  *    linear_acceleration----imu测量值加速度
  *    angular velocity ------角速度
  *    header-----------------时间戳等
-*/
+ */
  void Estimator::ProcessImu(double dt,
                            const Vector3d &linear_acceleration,
                            const Vector3d &angular_velocity,
@@ -358,6 +359,10 @@ void Estimator::SetupRos(ros::NodeHandle &nh) {
 
     Eigen::Matrix3d I3x3;
     I3x3.setIdentity();
+//      I3x3<<0.996206,0.000875961,0.0870252,
+//           -0.000764038,0.999999,-0.0013194,
+//           -0.0870263,0.0012479,0.996205;
+    LOG(INFO)<<I3x3;
     Ps_.push(Vector3d{0, 0, 0});
     Rs_.push(I3x3);
     Vs_.push(Vector3d{0, 0, 0});
@@ -433,7 +438,29 @@ void Estimator::SetupRos(ros::NodeHandle &nh) {
     predict_odom_.twist.twist.angular.x = Bas_.last().x();
     predict_odom_.twist.twist.angular.y = Bas_.last().y();
     predict_odom_.twist.twist.angular.z = Bas_.last().z();
-
+//0702 info
+    Eigen::Matrix3d rotation_matrix = Rs_.last();
+    Eigen::Vector3d euler_angles = rotation_matrix.eulerAngles(2,1,0);
+    float r,p,y;
+    r=euler_angles[2]*180/3.1415926;
+    p=euler_angles[1]*180/3.1415926;
+    y=euler_angles[0]*180/3.1415926;
+    LOG(INFO) /*<< "orientation:" << quat.x()<<","
+                                << quat.y()<<","
+			        << quat.z()<<","
+			        << quat.w()<<","*/
+		<<"position:"   << predict_odom_.pose.pose.position.x<<","
+		                << predict_odom_.pose.pose.position.y<<","
+				<< predict_odom_.pose.pose.position.z<<","
+		<<"euler_rpy:"<<r<<","
+		                <<p<<","
+				<<y<<","
+		/*<<"Vs_.last():" <<predict_odom_.twist.twist.linear.x<<","
+                                <<predict_odom_.twist.twist.linear.y<<","
+				<<predict_odom_.twist.twist.linear.z<<","
+	        <<"Bas_.last():"<<predict_odom_.twist.twist.angular.x<<","
+		                <<predict_odom_.twist.twist.angular.y<<","
+				<<predict_odom_.twist.twist.angular.z<<","*/;
     pub_predict_odom_.publish(predict_odom_);
   }
 
@@ -579,7 +606,8 @@ void Estimator::ProcessLaserOdom(const Transform &transform_in, const std_msgs::
 	    {
               ros::ServiceClient client = nh_.serviceClient<std_srvs::SetBool>("/enable_odom");
               std_srvs::SetBool srv;
-              srv.request.data = 0;
+              //srv.request.data = 0;
+	      srv.request.data = 1;
               if (client.call(srv))
 	      {
                 DLOG(INFO) << "TURN OFF THE ORIGINAL LASER ODOM";
@@ -808,7 +836,8 @@ void Estimator::ProcessLaserOdom(const Transform &transform_in, const std_msgs::
   tf_broadcaster_est_.sendTransform(wi_trans_);
 
 }
-//数据imu-点云对  处理
+
+//高频低频
 void Estimator::ProcessCompactData(const sensor_msgs::PointCloud2ConstPtr &compact_data,
                                    const std_msgs::Header &header) {
   /// 1. process compact data

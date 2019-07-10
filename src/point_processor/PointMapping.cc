@@ -128,6 +128,11 @@ PointMapping::PointMapping(float scan_period,
 //  down_size_filter_map_.setLeafSize(0.2, 0.2, 0.2);
 } // PointMapping
 
+/*
+ * function: PointMapping setupros
+ * 
+ *          enable_sub==false
+ */
 void PointMapping::SetupRos(ros::NodeHandle &nh, bool enable_sub) {
 
   is_ros_setup_ = true;
@@ -135,6 +140,7 @@ void PointMapping::SetupRos(ros::NodeHandle &nh, bool enable_sub) {
   nh.param("compact_data", compact_data_, true);
 
   // advertise laser odometry topics
+ // pub but not subscribe, and the topic name in lio_map_builder is /lio_map_builder/laser_cloud_surround,they are different
   pub_laser_cloud_surround_ = nh.advertise<sensor_msgs::PointCloud2>("/laser_cloud_surround", 2);
   pub_full_cloud_ = nh.advertise<sensor_msgs::PointCloud2>("/cloud_registered", 2);
   pub_odom_aft_mapped_ = nh.advertise<nav_msgs::Odometry>("/aft_mapped_to_init", 5);
@@ -142,6 +148,7 @@ void PointMapping::SetupRos(ros::NodeHandle &nh, bool enable_sub) {
   /// for test
 //  pub_diff_odometry_ = nh.advertise<nav_msgs::Odometry>("/laser_odom_to_last", 5);
 
+//enable_sub==0
   if (enable_sub) {
 
     if (compact_data_) {
@@ -236,7 +243,10 @@ void PointMapping::CompactDataHandler(const sensor_msgs::PointCloud2ConstPtr &co
 
   DLOG(INFO) << "decode compact data time: " << tic_toc_decoder.Toc() << " ms";
 }
-//接收边沿点
+
+/*
+ * function: recive the corner point from lio_estimator_node's pointodometr , modify the format into fromROSMsg
+ */
 void PointMapping::LaserCloudCornerLastHandler(const sensor_msgs::PointCloud2ConstPtr &corner_points_sharp_msg) {
   time_laser_cloud_corner_last_ = corner_points_sharp_msg->header.stamp;
 
@@ -245,7 +255,10 @@ void PointMapping::LaserCloudCornerLastHandler(const sensor_msgs::PointCloud2Con
 
   new_laser_cloud_corner_last_ = true;
 }
-//接收平面点
+
+/*
+ * function: recive the corner point from lio_estimator_node's pointodometr , modify the format into fromROSMsg
+ */
 void PointMapping::LaserCloudSurfLastHandler(const sensor_msgs::PointCloud2ConstPtr &corner_points_less_sharp_msg) {
   time_laser_cloud_surf_last_ = corner_points_less_sharp_msg->header.stamp;
 
@@ -254,7 +267,10 @@ void PointMapping::LaserCloudSurfLastHandler(const sensor_msgs::PointCloud2Const
 
   new_laser_cloud_surf_last_ = true;
 }
-//接收点云全部点
+
+/*
+ * function: recive the corner point from lio_estimator_node's pointodometr , modify the format into fromROSMsg
+ */
 void PointMapping::LaserFullCloudHandler(const sensor_msgs::PointCloud2ConstPtr &full_cloud_msg) {
   time_laser_full_cloud_ = full_cloud_msg->header.stamp;
 
@@ -263,7 +279,10 @@ void PointMapping::LaserFullCloudHandler(const sensor_msgs::PointCloud2ConstPtr 
 
   new_laser_full_cloud_ = true;
 }
-//接收旋转平移信息
+
+/*
+ * function: recieve the /local_laser_odom from lio_estimator_node **********************************************************************************
+ */
 void PointMapping::LaserOdometryHandler(const nav_msgs::Odometry::ConstPtr &laser_odom_msg) {
   time_laser_odometry_ = laser_odom_msg->header.stamp;
 
@@ -288,6 +307,7 @@ void PointMapping::Reset() {
   new_laser_odometry_ = false;
 }
 
+/*根据时间判断是否有新数据进入*/
 bool PointMapping::HasNewData() {
   return new_laser_cloud_corner_last_ && new_laser_cloud_surf_last_ &&
       new_laser_full_cloud_ && new_laser_odometry_ &&
@@ -299,7 +319,12 @@ bool PointMapping::HasNewData() {
 void PointMapping::SetInitFlag(bool set_init) {
   imu_inited_ = set_init;
 }
-//根据调整计算后的转移矩阵，将点注册到全局世界坐标系下
+
+/*
+ * function:根据调整计算后的转移矩阵，将点注册到全局世界坐标系下
+ * param : (pi ---特征点，   po---- 点云图 ，   变换矩阵)
+ * 
+ */
 void PointMapping::PointAssociateToMap(const PointT &pi, PointT &po, const Transform &transform_tobe_mapped) {
   po.x = pi.x;
   po.y = pi.y;
@@ -312,7 +337,11 @@ void PointMapping::PointAssociateToMap(const PointT &pi, PointT &po, const Trans
   po.y += transform_tobe_mapped.pos.y();
   po.z += transform_tobe_mapped.pos.z();
 }
-//点转移到局部坐标系下
+
+/*
+ * function:特征点返回到原坐标系下
+ *    
+ */
 void PointMapping::PointAssociateTobeMapped(const PointT &pi, PointT &po, const Transform &transform_tobe_mapped) {
   po.x = pi.x - transform_tobe_mapped.pos.x();
   po.y = pi.y - transform_tobe_mapped.pos.y();
@@ -1108,7 +1137,10 @@ void PointMapping::Process() {
   DLOG(INFO) << "mapping: " << tic_toc_.Toc() << " ms";
 
 }
-//更新图
+
+/*
+ * function:更新图数据库，  特征点放入cube中
+ */
 void PointMapping::UpdateMapDatabase(lio::PointCloudPtr margin_corner_stack_downsampled,
                                      lio::PointCloudPtr margin_surf_stack_downsampled,
                                      std::vector<size_t> margin_valid_idx,

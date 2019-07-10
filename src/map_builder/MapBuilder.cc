@@ -52,9 +52,17 @@ ConstrainedRotAxis(const Eigen::QuaternionBase<Derived> &quat_in) {
   return constrained_axis;
 }
 
+/*
+ * function : get a new transform_tobe_mapped_
+ * transform_sum : 前端里程计的变换结果 get from lio_estimator_node ,so the result is lidar+imu
+ * transform_tobe_mapped_: a transform from world to current?  未经优化，经过mapping之后变成了aft_mapped
+ * transform_bef_mapped_ : get from lio result ?
+ * full_transform : use the map result and increment to get the correct transform;
+ * return : transform_tobe_mapped_
+ */
 void MapBuilder::Transform4DAssociateToMap() {
-  Transform transform_incre(transform_bef_mapped_.inverse() * transform_sum_.transform());
-  Transform full_transform = transform_tobe_mapped_ * transform_incre;
+  Transform transform_incre(transform_bef_mapped_.inverse() * transform_sum_.transform());// the last one(from last time to init) * the new one(from new time to init) == the transform increment 
+  Transform full_transform = transform_tobe_mapped_ * transform_incre;// get a new transform to build map ,  transform_tobe_mapped_ is used to build map
 
   Eigen::Vector3d origin_R0 = R2ypr(full_transform.rot.normalized().toRotationMatrix().cast<double>());
 
@@ -66,7 +74,7 @@ void MapBuilder::Transform4DAssociateToMap() {
   //TODO
   Eigen::Matrix3f rot_diff = ypr2R(Eigen::Vector3f(y_diff, 0, 0));
 
-  transform_tobe_mapped_.pos = full_transform.pos;
+  transform_tobe_mapped_.pos = full_transform.pos;// get a new transform to build map ,  transform_tobe_mapped_ is used to build map
 #ifdef DEBUG
   transform_tobe_mapped_.rot = transform_sum_.rot.normalized();
 #else
@@ -74,6 +82,9 @@ void MapBuilder::Transform4DAssociateToMap() {
 #endif
 }
 
+/*
+ * function:记录前端里程计的转换矩阵，    记录优化后的转移矩阵，（发布）
+ */
 void MapBuilder::Transform4DUpdate() {
 //  Eigen::Vector3d origin_R0 = R2ypr(transform_tobe_mapped_.rot.normalized().toRotationMatrix().cast<double>());
 //  Eigen::Vector3d origin_R00 = R2ypr(transform_sum_.rot.normalized().toRotationMatrix().cast<double>());
@@ -89,6 +100,9 @@ void MapBuilder::Transform4DUpdate() {
   transform_aft_mapped_ = transform_tobe_mapped_;
 }
 
+/*
+ * function: set the map_builder config to filter the mapsize; 
+ */
 MapBuilder::MapBuilder(MapBuilderConfig config) {
 
   down_size_filter_corner_.setLeafSize(config.corner_filter_size, config.corner_filter_size, config.corner_filter_size);
@@ -101,6 +115,13 @@ MapBuilder::MapBuilder(MapBuilderConfig config) {
   config_ = config;
 }
 
+/*
+ * node:lio_map_builder 
+ * publish: /laser_cloud_surrond,/cloud_registered,/aft_mapped_to_init
+ * subscribe:  /laser_cloud_surf_last,/laser_cloud_corner_last,/laser_odom_to_init,/full_odom_cloud, 
+ *                get from lio_estimator_node, and launch file remap it.
+ * remap the sub: /local/surf_points,/local/corner_points,/local_laser_odom,/local/full_points
+ */
 void MapBuilder::SetupRos(ros::NodeHandle &nh) {
 //  PointMapping::SetupRos(nh, true);
 
@@ -135,12 +156,21 @@ void MapBuilder::SetupRos(ros::NodeHandle &nh) {
 
 
   odom_aft_mapped_.header.frame_id = "/world";
+  //odom_aft_mapped_.header.frame_id = "/camera_init";
   odom_aft_mapped_.child_frame_id = "/aft_4d_mapped";
 
   aft_mapped_trans_.frame_id_ = "/world";
+//  aft_mapped_trans_.frame_id_ = "/camera_init";
   aft_mapped_trans_.child_frame_id_ = "/aft_4d_mapped";
 }
-//发布
+
+/*
+ * function：建图信息发布  
+ *    publish the transform_aft_mapped_ ,it is influened by transform_tobe_mapped_ in function MapBuilder::Transform4DAssociateToMap(), and it is influened by transform_sum 
+ *    transform_bef_mapped_  record the last time transform_sum, 
+ *    we get transform_sum from the topic we sub called /local_laser_odom or /laser_odom_to_init , 
+ *    and callback the function LaserOdometryHandler(const nav_msgs::Odometry::ConstPtr &laser_odom_msg) to process and then get the transform_sum
+ */
 void MapBuilder::PublishMapBuilderResults() {
 
   if (!is_ros_setup_) {
@@ -149,6 +179,7 @@ void MapBuilder::PublishMapBuilderResults() {
   }
 
   // publish new map cloud according to the input output ratio
+//0705  num_map_frames_==5, 每隔5帧发布一次  特征点云
   ++map_frame_count_;
   if (map_frame_count_ >= num_map_frames_) {
     map_frame_count_ = 0;
@@ -172,10 +203,15 @@ void MapBuilder::PublishMapBuilderResults() {
                     *laser_cloud_surround_downsampled_,
                     time_laser_odometry_,
                     "/world");
+//        PublishCloudMsg(pub_laser_cloud_surround_,
+//                        *laser_cloud_surround_downsampled_,
+//                        time_laser_odometry_,
+//                        "/camera_init");
   }
 
 
   // transform full resolution input cloud to map
+//0705 将点云中全部点转移到世界坐标系下
   size_t laser_full_cloud_size = full_cloud_->points.size();
   for (int i = 0; i < laser_full_cloud_size; i++) {
     PointAssociateToMap(full_cloud_->points[i], full_cloud_->points[i], transform_tobe_mapped_);
@@ -183,9 +219,11 @@ void MapBuilder::PublishMapBuilderResults() {
 
   // publish transformed full resolution input cloud
   PublishCloudMsg(pub_full_cloud_, *full_cloud_, time_laser_odometry_, "/world");
+ //   PublishCloudMsg(pub_full_cloud_, *full_cloud_, time_laser_odometry_, "/camera_init");
 
 
   // publish odometry after mapped transformations
+//0705  发布优化后的变换结果 轨迹
   geometry_msgs::Quaternion geo_quat;
   geo_quat.w = transform_aft_mapped_.rot.w();
   geo_quat.x = transform_aft_mapped_.rot.x();
@@ -200,7 +238,17 @@ void MapBuilder::PublishMapBuilderResults() {
   odom_aft_mapped_.pose.pose.position.x = transform_aft_mapped_.pos.x();
   odom_aft_mapped_.pose.pose.position.y = transform_aft_mapped_.pos.y();
   odom_aft_mapped_.pose.pose.position.z = transform_aft_mapped_.pos.z();
-
+//0703
+  Eigen::Quaterniond x;
+x={geo_quat.w,geo_quat.x,geo_quat.y,geo_quat.z};
+Eigen::Vector3d euler_angles1=x.toRotationMatrix().eulerAngles(2,1,0);
+float r1,p1,y1;
+    r1=euler_angles1[2]*180/3.1415926;
+    p1=euler_angles1[1]*180/3.1415926;
+    y1=euler_angles1[0]*180/3.1415926;
+    LOG(INFO)<<"euler_rpy:"<<r1<<","
+		                <<p1<<","
+				<<y1<<",";
 //  odom_aft_mapped_.twist.twist.angular.x = transform_bef_mapped_.rot.x();
 //  odom_aft_mapped_.twist.twist.angular.y = transform_bef_mapped_.rot.y();
 //  odom_aft_mapped_.twist.twist.angular.z = transform_bef_mapped_.rot.z();
@@ -216,24 +264,35 @@ void MapBuilder::PublishMapBuilderResults() {
                                           transform_aft_mapped_.pos.z()));
   tf_broadcaster_.sendTransform(aft_mapped_trans_);
 }
-//处理
+
+/*
+ * function:主流程，建图处理
+ * 
+ * 
+ * 
+ */
 void MapBuilder::ProcessMap() {
+  /*根据时间判断是否有新数据进入*/
   if (!HasNewData()) {
     // waiting for new data to arrive...
     // DLOG(INFO) << "no data received or dropped";
     return;
   }
-
+  /*初始化建图system_init初始化为false*/
+  /* * transform_sum : 前端里程计的变换结果 get from lio_estimator_node ,so the result is lidar+imu
+     * transform_tobe_mapped_: a transform from world to current?
+     * transform_bef_mapped_ : get from lio result ?  always equals to transform_sum ,so it's the lio result.*/
   if (!system_init_) {
     system_init_ = true;
-    transform_bef_mapped_ = transform_sum_;
+    transform_bef_mapped_ = transform_sum_;//0705 transform from current to init;
     transform_tobe_mapped_ = transform_sum_;
     transform_aft_mapped_ = transform_tobe_mapped_;
   }
 
   Reset();
 
-  ++frame_count_;
+  //0705   当前num_stack_frames_等于1，如果加大可以控制每隔几针进行计算
+  ++frame_count_; 
   if (frame_count_ < num_stack_frames_) {
     return;
   }
@@ -243,8 +302,10 @@ void MapBuilder::ProcessMap() {
 
   // relate incoming data to map
   // WARNING
+  /*enable_4d default val is true*/
   if (enable_4d_) {
-    Transform4DAssociateToMap();
+    /*get a new transform from (?)*/
+    Transform4DAssociateToMap();  
   } else {
     TransformAssociateToMap();
     DLOG(INFO) << "DISABLE 4D";
@@ -284,6 +345,8 @@ void MapBuilder::ProcessMap() {
 //  }
 
   // NOTE: the stack points are the last corner or surf poitns
+  
+//0705 在地图中注册点云
   size_t laser_cloud_corner_last_size = laser_cloud_corner_last_->points.size();
   for (int i = 0; i < laser_cloud_corner_last_size; i++) {
     PointAssociateToMap(laser_cloud_corner_last_->points[i], point_sel, transform_tobe_mapped_);
@@ -297,10 +360,11 @@ void MapBuilder::ProcessMap() {
   }
 
   // NOTE: above codes update the transform with incremental value and update them to the map coordinate
-
+//0705 得到当前坐标系z轴上方10m在世界坐标系下的坐标
   point_on_z_axis_.x = 0.0;
   point_on_z_axis_.y = 0.0;
   point_on_z_axis_.z = 10.0;
+  
   PointAssociateToMap(point_on_z_axis_, point_on_z_axis_, transform_tobe_mapped_);
 
   // NOTE: in which cube
@@ -313,6 +377,7 @@ void MapBuilder::ProcessMap() {
   if (transform_tobe_mapped_.pos.y() + 25.0 < 0) --center_cube_j;
   if (transform_tobe_mapped_.pos.z() + 25.0 < 0) --center_cube_k;
 
+//0705 立方体移动 ？？？？？？？
 //  DLOG(INFO) << "center_before: " << center_cube_i << " " << center_cube_j << " " << center_cube_k;
   {
     while (center_cube_i < 3) {
@@ -427,7 +492,7 @@ void MapBuilder::ProcessMap() {
 //  DLOG(INFO) << "center_after: " << center_cube_i << " " << center_cube_j << " " << center_cube_k;
 //  DLOG(INFO) << "laser_cloud_cen: " << laser_cloud_cen_length_ << " " << laser_cloud_cen_width_ << " "
 //            << laser_cloud_cen_height_;
-
+//0705  视野范围内的cube  ？？？？？
   for (int i = center_cube_i - 2; i <= center_cube_i + 2; ++i) {
     for (int j = center_cube_j - 2; j <= center_cube_j + 2; ++j) {
       for (int k = center_cube_k - 2; k <= center_cube_k + 2; ++k) {
@@ -486,6 +551,7 @@ void MapBuilder::ProcessMap() {
   }
 
   // prepare valid map corner and surface cloud for pose optimization
+//0705 构建特征点地图，用于位姿优化，匹配。。。。。将点转移到局部坐标系
   laser_cloud_corner_from_map_->clear();
   laser_cloud_surf_from_map_->clear();
   size_t laser_cloud_valid_size = laser_cloud_valid_idx_.size();
@@ -510,6 +576,7 @@ void MapBuilder::ProcessMap() {
   }
 
   // down sample feature stack clouds
+//0705： 点云降采样。  步骤：滤波对象---过滤----滤波后大小
   laser_cloud_corner_stack_downsampled_->clear();
   down_size_filter_corner_.setInputCloud(laser_cloud_corner_stack_);
   down_size_filter_corner_.filter(*laser_cloud_corner_stack_downsampled_);
@@ -526,20 +593,25 @@ void MapBuilder::ProcessMap() {
   // NOTE: keeps the downsampled points
 
   // NOTE: run pose optimization
+//0705：odom_count_初始值为0， line576  skip_count为2； enable_4d为true  
+//     每两帧优化一次地图；
   if (odom_count_ % skip_count_ == 0) {
-    if (enable_4d_) {
-      OptimizeMap();
-    } else {
+      if (enable_4d_) {
+         OptimizeMap();
+      } 
+      else {
       OptimizeTransformTobeMapped();
       DLOG(INFO) << "DISABLE 4D";
-    }
-  } else {
-    if (enable_4d_) {
-      Transform4DUpdate();
-    } else {
+      }
+  } 
+  else {
+      if (enable_4d_) {
+         Transform4DUpdate();
+      } 
+      else {
       TransformUpdate();
       DLOG(INFO) << "DISABLE 4D";
-    }
+      }
   }
   ++odom_count_;
 
@@ -620,8 +692,12 @@ void MapBuilder::ProcessMap() {
   DLOG(INFO) << "mapping: " << tic_toc_.Toc() << " ms";
 
 }
-//优化
+
+/*
+ * function: 地图优化
+ */
 void MapBuilder::OptimizeMap() {
+//0705  特征点数量足够
   if (laser_cloud_corner_from_map_->points.size() <= 10 || laser_cloud_surf_from_map_->points.size() <= 100) {
     LOG(ERROR) << "skip due to insufficient points";
     return;
@@ -631,7 +707,7 @@ void MapBuilder::OptimizeMap() {
 
   std::vector<int> point_search_idx(5, 0);
   std::vector<float> point_search_sq_dis(5, 0);
-
+//0705 构建kdtree
   pcl::KdTreeFLANN<PointT>::Ptr kdtree_corner_from_map(new pcl::KdTreeFLANN<PointT>());
   pcl::KdTreeFLANN<PointT>::Ptr kdtree_surf_from_map(new pcl::KdTreeFLANN<PointT>());
 
@@ -655,7 +731,7 @@ void MapBuilder::OptimizeMap() {
 
   bool is_degenerate = false;
   matP_.setIdentity();
-
+//0705 降采样后的大小
   size_t laser_cloud_corner_stack_size = laser_cloud_corner_stack_downsampled_->points.size();
   size_t laser_cloud_surf_stack_size = laser_cloud_surf_stack_downsampled_->points.size();
 
@@ -680,16 +756,17 @@ void MapBuilder::OptimizeMap() {
   info_mat = (constrained_R.transpose() * info_mat * constrained_R).eval();
   Eigen::Matrix3f projection_mat =
       constrained_axis * (constrained_axis.transpose() * constrained_axis).inverse() * constrained_axis.transpose();
-
+//0705  迭代次数 num_max_iterations_设置为10；
   for (size_t iter_count = 0; iter_count < num_max_iterations_; ++iter_count) {
     laser_cloud_ori.clear();
     coeff_sel.clear();
 
     laser_cloud_ori_spc.clear();
-
+  //0705 点云转换回到世界坐标系下  corner点      为什么需要转回？
     for (int i = 0; i < laser_cloud_corner_stack_size; ++i) {
       point_ori = laser_cloud_corner_stack_downsampled_->points[i];
       PointAssociateToMap(point_ori, point_sel, transform_tobe_mapped_);
+      //寻找最近距离5个点
       kdtree_corner_from_map->nearestKSearch(point_sel, 5, point_search_idx, point_search_sq_dis);
 
       if (point_search_sq_dis[4] < min_match_sq_dis_) {
@@ -795,7 +872,7 @@ void MapBuilder::OptimizeMap() {
         }
       }
     }
-
+  //0705 点云转换回到世界坐标系下  surf点
     for (int i = 0; i < laser_cloud_surf_stack_size; i++) {
       point_ori = laser_cloud_surf_stack_downsampled_->points[i];
       PointAssociateToMap(point_ori, point_sel, transform_tobe_mapped_);
@@ -871,6 +948,7 @@ void MapBuilder::OptimizeMap() {
     }
 
     size_t laser_cloud_sel_size = laser_cloud_ori.points.size();
+    //特征点数量保证足够
     if (laser_cloud_sel_size < 50) {
       continue;
     }
@@ -927,6 +1005,7 @@ void MapBuilder::OptimizeMap() {
 //    DLOG(INFO) << "X_r:" << X_r.transpose();
 //    DLOG(INFO) << "mat_X.head<3>() aft: " << mat_X.head<3>().transpose();
 
+//0705： 如果迭代次数为0 ，说明出现了相似场景，场景退化，    退化处理
     if (iter_count == 0) {
       Eigen::Matrix<float, 1, 6> mat_E;
       Eigen::Matrix<float, 6, 6> mat_V;
@@ -1009,7 +1088,7 @@ void MapBuilder::OptimizeMap() {
       break;
     }
   }
-
+//0705 迭代结束 更新转移矩阵
   Transform4DUpdate();
 }
 

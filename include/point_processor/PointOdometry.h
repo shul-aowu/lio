@@ -140,7 +140,7 @@ class PointOdometry {
 
       // try processing new data
       Process();
-
+      
       status = ros::ok();
       rate.sleep();
     }

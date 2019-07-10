@@ -465,10 +465,12 @@ bool ImuInitializer::EstimateExtrinsicRotation(CircularBuffer<PairTimeLaserTrans
   //LOG(INFO) << "normalized rotation: " << "          "<<XXX;
   Eigen::Matrix3d R = estimated_qlb.toRotationMatrix();
   LOG(INFO) << "extrinsic rotation: " << "           "<<R;
+  Eigen::Vector3d eularangle = R.eulerAngles(2,1,0);
+  LOG(INFO) << "OULAR ANGLES:" << "  "<<eularangle;
   Eigen::Isometry3f tran = Eigen::Isometry3f::Identity();
-  tran.rotate(Eigen::AngleAxisf(0 / 180.0 * M_PI, Eigen::Vector3f::UnitX()) *
-                Eigen::AngleAxisf(-5 / 180.0 * M_PI, Eigen::Vector3f::UnitY()) *
-                Eigen::AngleAxisf((-90)/ 180.0 * M_PI, Eigen::Vector3f::UnitZ()));
+  tran.rotate(Eigen::AngleAxisf(0.362569 / 180.0 * M_PI, Eigen::Vector3f::UnitX()) *
+                Eigen::AngleAxisf(-2.22152 / 180.0 * M_PI, Eigen::Vector3f::UnitY()) *
+                Eigen::AngleAxisf((-88.5397)/ 180.0 * M_PI, Eigen::Vector3f::UnitZ()));
   LOG(INFO) << "extrinsic rotation: " << "                  "<< tran.rotation();
 //   Eigen::Isometry3f tran2 = Eigen::Isometry3f::Identity();
 //   tran.rotate(Eigen::AngleAxisf(0 / 180.0 * M_PI, Eigen::Vector3f::UnitX()) *

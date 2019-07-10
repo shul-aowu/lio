@@ -31,7 +31,9 @@
 #include "imu_processor/MeasurementManager.h"
 
 namespace lio {
-//ros设置
+/*
+ * function : set the lio_estimator_node to sub the /imu/data and /compact_data ,and process it 
+ */
 void MeasurementManager::SetupRos(ros::NodeHandle &nh) {
   is_ros_setup_ = true;
 
@@ -106,7 +108,10 @@ PairMeasurements MeasurementManager::GetMeasurements() {
   }
 
 }
-//imu信息处理
+
+/*
+ * function: sub the feed_lio /imu/data,store the imu_msg
+ */
 void MeasurementManager::ImuHandler(const sensor_msgs::ImuConstPtr &raw_imu_msg) {
   if (raw_imu_msg->header.stamp.toSec() <= imu_last_time_) {
     LOG(ERROR) << ("imu message in disorder!");
@@ -139,7 +144,12 @@ void MeasurementManager::LaserOdomHandler(const nav_msgs::OdometryConstPtr &lase
   buf_mutex_.unlock();
   con_.notify_one();
 }
-//紧耦合信息
+
+/*
+ * function : get the lio_estimator_node message /compact_data , store it  
+ *    在pointodometry中发布
+ * 用于高频建图和低频建图的处理
+ */
 void MeasurementManager::CompactDataHandler(const sensor_msgs::PointCloud2ConstPtr &compact_data_msg) {
   buf_mutex_.lock();
   compact_data_buf_.push(compact_data_msg);

@@ -108,7 +108,7 @@ void PointOdometry::SetupRos(ros::NodeHandle &nh) {
   nh.param("compact_data", compact_data_, true);
 
   enable_odom_service_ = nh.advertiseService("/enable_odom", &PointOdometry::EnableOdom, this);
-
+//compact_data==true
   if (compact_data_) {
     pub_compact_data_ = nh.advertise<sensor_msgs::PointCloud2>("/compact_data", 2);
   } else {
@@ -143,7 +143,12 @@ void PointOdometry::SetupRos(ros::NodeHandle &nh) {
 //      ("/imu_trans", 5, &LaserOdometry::ImuTransHandler, this);
 
 }
-//receive sharp points
+
+/*
+ * function:
+ *      接受话题/laser_cloud_less_sharp，line 131，
+ *      作为回调函数处理接受到的点云数据  转换格式
+ */
 void PointOdometry::LaserCloudSharpHandler(const sensor_msgs::PointCloud2ConstPtr &corner_points_sharp_msg) {
   time_corner_points_sharp_ = corner_points_sharp_msg->header.stamp;
 
@@ -155,7 +160,12 @@ void PointOdometry::LaserCloudSharpHandler(const sensor_msgs::PointCloud2ConstPt
   pcl::removeNaNFromPointCloud(*corner_points_sharp_, *corner_points_sharp_, indices);
   new_corner_points_sharp_ = true;
 }
-//receive less sharp points
+
+/*
+ * function: 
+ *     接受话题/laser_cloud_less_sharp，line 131， 
+ *     作为回调函数处理接受到的点云数据，转换格式；
+ */
 void PointOdometry::LaserCloudLessSharpHandler(const sensor_msgs::PointCloud2ConstPtr &corner_points_less_sharp_msg) {
   time_corner_points_less_sharp_ = corner_points_less_sharp_msg->header.stamp;
 
@@ -167,7 +177,12 @@ void PointOdometry::LaserCloudLessSharpHandler(const sensor_msgs::PointCloud2Con
   pcl::removeNaNFromPointCloud(*corner_points_less_sharp_, *corner_points_less_sharp_, indices);
   new_corner_points_less_sharp_ = true;
 }
-//receive flat points
+
+/*
+ * function:
+ *      接受话题/laser_cloud_less_sharp，line 131，
+ *      作为回调函数处理接受到的点云数据  转换格式
+ */
 void PointOdometry::LaserCloudFlatHandler(const sensor_msgs::PointCloud2ConstPtr &surf_points_flat_msg) {
   time_surf_points_flat_ = surf_points_flat_msg->header.stamp;
 
@@ -179,7 +194,12 @@ void PointOdometry::LaserCloudFlatHandler(const sensor_msgs::PointCloud2ConstPtr
   pcl::removeNaNFromPointCloud(*surf_points_flat_, *surf_points_flat_, indices);
   new_surf_points_flat_ = true;
 }
-//receive less flat points
+
+/*
+ * function:
+ *      接受话题/laser_cloud_less_sharp，line 131，
+ *      作为回调函数处理接受到的点云数据  转换格式
+ */
 void PointOdometry::LaserCloudLessFlatHandler(const sensor_msgs::PointCloud2ConstPtr &surf_points_less_flat_msg) {
   time_surf_points_less_flat_ = surf_points_less_flat_msg->header.stamp;
 
@@ -191,7 +211,12 @@ void PointOdometry::LaserCloudLessFlatHandler(const sensor_msgs::PointCloud2Cons
   pcl::removeNaNFromPointCloud(*surf_points_less_flat_, *surf_points_less_flat_, indices);
   new_surf_points_less_flat_ = true;
 }
-//receive all points
+
+/*
+ * function:
+ *      接受话题/laser_cloud_less_sharp，line 131，
+ *      作为回调函数处理接受到的点云数据  转换格式
+ */
 void PointOdometry::LaserFullCloudHandler(const sensor_msgs::PointCloud2ConstPtr &full_cloud_msg) {
   time_full_cloud_ = full_cloud_msg->header.stamp;
 
@@ -203,6 +228,8 @@ void PointOdometry::LaserFullCloudHandler(const sensor_msgs::PointCloud2ConstPtr
   pcl::removeNaNFromPointCloud(*full_cloud_, *full_cloud_, indices);
   new_full_cloud_ = true;
 }
+
+/*无用到*/
 //利用IMU修正旋转量，根据起始欧拉角，当前点云的欧拉角修正
 //接收imu消息
 void PointOdometry::ImuTransHandler(const sensor_msgs::PointCloud2ConstPtr &imu_trans_msg) {
@@ -233,7 +260,10 @@ bool PointOdometry::HasNewData() {
       fabs((time_surf_points_less_flat_ - time_corner_points_sharp_).toSec()) < 0.005 &&
       fabs((time_full_cloud_ - time_corner_points_sharp_).toSec()) < 0.005;
 }
-//当前点云中的点相对第一个点去除因匀速运动产生的畸变，效果相当于得到在点云扫描开始位置静止扫描得到的点云
+/*
+ *当前点云中的点相对第一个点去除因匀速运动产生的畸变，效果相当于得到在点云扫描开始位置静止扫描得到的点云
+ *transform_es_ :    从第一个点变换到最后一个点  s是一个匀速运动模型factor
+ */
 void PointOdometry::TransformToStart(const PointT &pi, PointT &po) {
   float s = time_factor_ * (pi.intensity - int(pi.intensity));
   if (s < 0 || s > 1.001) {
@@ -284,19 +314,25 @@ size_t PointOdometry::TransformToEnd(PointCloudPtr &cloud) {
   return cloud_size;
 }
 
+/*
+ * function: main process
+ * reference: loam LaserOdometry.cpp
+ */
 void PointOdometry::Process() {
+  
+  
   if (!HasNewData()) {
     // DLOG(INFO) << "no data received or dropped";
     return;
   }
 
   Reset();
-
+  //存入第一个点云，从下一个点云数据开始处理
   if (!system_inited_) {
     corner_points_less_sharp_.swap(last_corner_cloud_);
     surf_points_less_flat_.swap(last_surf_cloud_);
-    kdtree_corner_last_->setInputCloud(last_corner_cloud_);
-    kdtree_surf_last_->setInputCloud(last_surf_cloud_);
+    kdtree_corner_last_->setInputCloud(last_corner_cloud_);//使用特征点构建kd-tree，所有的边沿点集合
+    kdtree_surf_last_->setInputCloud(last_surf_cloud_);//所有的平面点集合
 
     system_inited_ = true;
     return;
@@ -309,11 +345,12 @@ void PointOdometry::Process() {
 
   size_t last_corner_size = last_corner_cloud_->points.size();
   size_t last_surf_size = last_surf_cloud_->points.size();
-
+  
   tic_toc_.Tic();
 
   if (enable_odom_) {
     // NOTE: fixed number here
+    //保证有足够的特征点
     if (last_corner_size > 10 && last_surf_size > 100) {
       std::vector<int> point_search_idx(1);
       std::vector<float> point_search_sq_dis(1);
@@ -326,18 +363,22 @@ void PointOdometry::Process() {
       idx_surf1_.resize(num_curr_surf_points_flat);
       idx_surf2_.resize(num_curr_surf_points_flat);
       idx_surf3_.resize(num_curr_surf_points_flat);
-
+      //非线性优化LM，迭代最高25次
       for (size_t iter_count = 0; iter_count < num_max_iterations_; ++iter_count) {
         PointT point_sel, tripod1, tripod2, tripod3;
         laser_cloud_ori_->clear();
         coeff_sel_->clear();
-
+        ////处理当前点云中的曲率最大的特征点,从上个点云中曲率比较大的特征点中找两个最近距离点，一个点使用kd-tree查找，另一个根据找到的点在其相邻线找另外一个最近距离的点
         for (int i = 0; i < num_curr_corner_points_sharp; ++i) {
+	  
           TransformToStart(corner_points_sharp_->points[i], point_sel);
+	  //每迭代五次，重新查找最近点
           if (iter_count % 5 == 0) {
+	    //kd-tree查找一个最近距离点，边沿点未经过体素栅格滤波，一般边沿点本来就比较少，不做滤波
             kdtree_corner_last_->nearestKSearch(point_sel, 1, point_search_idx, point_search_sq_dis);
 
             int closest_point_idx = -1, second_closet_point_idx = -1; /// the second one is in another ring
+            //寻找相邻线距离目标点距离最小的点
             if (point_search_sq_dis[0] < 25) {
               closest_point_idx = point_search_idx[0];
               int closest_point_scan = int(last_corner_cloud_->points[closest_point_idx].intensity);
@@ -377,10 +418,12 @@ void PointOdometry::Process() {
             idx_corner2_[i] = second_closet_point_idx;
           } // NOTE: two points for closest points in a line, update points
 
+          //大于等于0，不等于-1，说明两个点都找到了
           if (idx_corner2_[i] >= 0) {
             tripod1 = last_corner_cloud_->points[idx_corner1_[i]];
             tripod2 = last_corner_cloud_->points[idx_corner2_[i]];
 
+	    //选择的特征点记为O，kd-tree最近距离点记为A，另一个最近距离点记为B
             float x0 = point_sel.x;
             float y0 = point_sel.y;
             float z0 = point_sel.z;
@@ -390,7 +433,14 @@ void PointOdometry::Process() {
             float x2 = tripod2.x;
             float y2 = tripod2.y;
             float z2 = tripod2.z;
-
+	    
+              //向量OA = (x0 - x1, y0 - y1, z0 - z1), 向量OB = (x0 - x2, y0 - y2, z0 - z2)，向量AB = （x1 - x2, y1 - y2, z1 - z2）
+              //向量OA OB的向量积(即叉乘)为：
+              //|  i      j      k  |
+              //|x0-x1  y0-y1  z0-z1|
+              //|x0-x2  y0-y2  z0-z2|
+	    
+              //模为：
             float a012 = sqrt(((x0 - x1) * (y0 - y2) - (x0 - x2) * (y0 - y1))
                                   * ((x0 - x1) * (y0 - y2) - (x0 - x2) * (y0 - y1))
                                   + ((x0 - x1) * (z0 - z2) - (x0 - x2) * (z0 - z1))
@@ -398,20 +448,28 @@ void PointOdometry::Process() {
                                   + ((y0 - y1) * (z0 - z2) - (y0 - y2) * (z0 - z1))
                                       * ((y0 - y1) * (z0 - z2) - (y0 - y2) * (z0 - z1)));
 
+	    //两个最近距离点之间的距离，即向量AB的模
             float l12 = sqrt((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2) + (z1 - z2) * (z1 - z2));
+	      
+	    //AB方向的单位向量与OAB平面的单位法向量的向量积在各轴上的分量（d的方向）
+              //x轴分量i
             // NOTE: l-abc is the distance direction from the line to the point
             float la = ((y1 - y2) * ((x0 - x1) * (y0 - y2) - (x0 - x2) * (y0 - y1))
                 + (z1 - z2) * ((x0 - x1) * (z0 - z2) - (x0 - x2) * (z0 - z1))) / a012 / l12;
 
+		//y轴分量j
             float lb = -((x1 - x2) * ((x0 - x1) * (y0 - y2) - (x0 - x2) * (y0 - y1))
                 - (z1 - z2) * ((y0 - y1) * (z0 - z2) - (y0 - y2) * (z0 - z1))) / a012 / l12;
 
             float lc = -((x1 - x2) * ((x0 - x1) * (z0 - z2) - (x0 - x2) * (z0 - z1))
                 + (y1 - y2) * ((y0 - y1) * (z0 - z2) - (y0 - y2) * (z0 - z1))) / a012 / l12;
 
+		//点到线的距离，d = |向量OA 叉乘 向量OB|/|AB|
             float ld2 = a012 / l12;
 
+	    //权重计算，距离越大权重越小，距离越小权重越大，得到的权重范围<=1
             float s = 1;
+	    //5次迭代之后开始增加权重因素
             if (iter_count >= 5) {
               s = 1 - 1.8f * fabs(ld2);
             }
@@ -422,6 +480,7 @@ void PointOdometry::Process() {
             coeff.intensity = s * ld2;
 
             // NOTE: ld2 <= 0.5
+	    //只保留权重大的，也即距离比较小的点，同时也舍弃距离为零的
             if (s > 0.1 && ld2 != 0) {
               laser_cloud_ori_->push_back(corner_points_sharp_->points[i]);
               coeff_sel_->push_back(coeff);
@@ -430,6 +489,7 @@ void PointOdometry::Process() {
 
         } // NOTE: for corner points
 
+        //对本次接收到的曲率最小的点,从上次接收到的点云曲率比较小的点中找三点组成平面，一个使用kd-tree查找，另外一个在同一线上查找满足要求的，第三个在不同线上查找满足要求的
         for (int i = 0; i < num_curr_surf_points_flat; ++i) {
           TransformToStart(surf_points_flat_->points[i], point_sel);
 
@@ -481,16 +541,20 @@ void PointOdometry::Process() {
               }
             }
 
-            idx_surf1_[i] = closest_point_idx;
-            idx_surf2_[i] = second_closet_point_idx;
-            idx_surf3_[i] = third_clost_point_idx;
+            idx_surf1_[i] = closest_point_idx;//kd-tree最近距离点,-1表示未找到满足要求的点
+            idx_surf2_[i] = second_closet_point_idx;//同一线号上的距离最近的点，-1表示未找到满足要求的点
+            idx_surf3_[i] = third_clost_point_idx;//不同线号上的距离最近的点，-1表示未找到满足要求的点
           }
 
           if (idx_surf2_[i] >= 0 && idx_surf3_[i] >= 0) {
-            tripod1 = last_surf_cloud_->points[idx_surf1_[i]];
-            tripod2 = last_surf_cloud_->points[idx_surf2_[i]];
-            tripod3 = last_surf_cloud_->points[idx_surf3_[i]];
+            tripod1 = last_surf_cloud_->points[idx_surf1_[i]];//A
+            tripod2 = last_surf_cloud_->points[idx_surf2_[i]];//B
+            tripod3 = last_surf_cloud_->points[idx_surf3_[i]];//C
+              //向量AB = (tripod2.x - tripod1.x, tripod2.y - tripod1.y, tripod2.z - tripod1.z)
+              //向量AC = (tripod3.x - tripod1.x, tripod3.y - tripod1.y, tripod3.z - tripod1.z)
 
+              //向量AB AC的向量积（即叉乘），得到的是法向量
+              //x轴方向分向量i
             float pa = (tripod2.y - tripod1.y) * (tripod3.z - tripod1.z)
                 - (tripod3.y - tripod1.y) * (tripod2.z - tripod1.z);
             float pb = (tripod2.z - tripod1.z) * (tripod3.x - tripod1.x)
@@ -499,12 +563,14 @@ void PointOdometry::Process() {
                 - (tripod3.x - tripod1.x) * (tripod2.y - tripod1.y);
             float pd = -(pa * tripod1.x + pb * tripod1.y + pc * tripod1.z);
 
+	    //法向量的模
             float ps = sqrt(pa * pa + pb * pb + pc * pc);
             pa /= ps;
             pb /= ps;
             pc /= ps;
             pd /= ps;
 
+	      //点到面的距离：向量OA与与法向量的点积除以法向量的模
             float pd2 = pa * point_sel.x + pb * point_sel.y + pc * point_sel.z + pd;
 
             float s = 1;
@@ -525,10 +591,11 @@ void PointOdometry::Process() {
         } // NOTE: for plane points
 
         int num_point_sel = laser_cloud_ori_->points.size();
+	//满足要求的特征点至少10个，特征匹配数量太少弃用此帧数据
         if (num_point_sel < 10) {
           continue;
         }
-
+//构建雅克比
         Eigen::Matrix<float, Eigen::Dynamic, 6> mat_A(num_point_sel, 6);
         Eigen::Matrix<float, 6, Eigen::Dynamic> mat_At(6, num_point_sel);
         Eigen::Matrix<float, 6, 6> mat_AtA;
@@ -570,15 +637,17 @@ void PointOdometry::Process() {
         // cout << "mat_At" << endl << mat_At << endl;
         // cout << "mat_B" << endl << mat_B << endl;
 
+	//求解matAtA * matX = matAtB
         mat_X = mat_AtA.colPivHouseholderQr().solve(mat_AtB);
 
         Eigen::Matrix<float, 6, 6> mat_P;
 
         if (iter_count == 0) {
-          Eigen::Matrix<float, 1, 6> mat_E;
-          Eigen::Matrix<float, 6, 6> mat_V;
+          Eigen::Matrix<float, 1, 6> mat_E;//特征值1*6矩阵
+          Eigen::Matrix<float, 6, 6> mat_V;//特征向量6*6矩阵
           Eigen::Matrix<float, 6, 6> mat_V2;
 
+	  //求解特征值/特征向量
           Eigen::SelfAdjointEigenSolver<Eigen::Matrix<float, 6, 6> > esolver(mat_AtA);
           mat_E = esolver.eigenvalues().real();
           mat_V = esolver.eigenvectors().real();
@@ -586,10 +655,11 @@ void PointOdometry::Process() {
           mat_V2 = mat_V;
 
           is_degenerate = false;
+	  //特征值取值门槛
           float eign_thre[6] = {10, 10, 10, 10, 10, 10};
           for (int i = 0; i < 6; i++) {
-            if (mat_E(0, i) < eign_thre[i]) {
-              for (int j = 0; j < 6; j++) {
+            if (mat_E(0, i) < eign_thre[i]) {//特征值太小，则认为处在兼并环境中，发生了退化
+              for (int j = 0; j < 6; j++) {//对应的特征向量置为0
                 mat_V2(i, j) = 0;
               }
               cout << mat_E << endl;
@@ -598,23 +668,23 @@ void PointOdometry::Process() {
               break;
             }
           }
-          mat_P = mat_V2 * mat_V.inverse();
+          mat_P = mat_V2 * mat_V.inverse();//计算P矩阵
         }
 
-        if (is_degenerate) {
+        if (is_degenerate) {//如果发生退化，只使用预测矩阵P计算
           Eigen::Matrix<float, 6, 1> mat_X2;
           mat_X2 = mat_X;
           mat_X = mat_P * mat_X2;
         }
 
         Eigen::Vector3f r_so3 = R_SO3.log();
-
+//累加每次迭代的旋转平移量
         r_so3.x() += mat_X(0, 0);
         r_so3.y() += mat_X(1, 0);
         r_so3.z() += mat_X(2, 0);
 
         // DLOG(INFO) << "mat_X: " << mat_X.transpose();
-
+//累加每次迭代的旋转平移量
         transform_es_.pos.x() += mat_X(3, 0);
         transform_es_.pos.y() += mat_X(4, 0);
         transform_es_.pos.z() += mat_X(5, 0);
@@ -631,23 +701,26 @@ void PointOdometry::Process() {
         if (!isfinite(transform_es_.pos.x())) transform_es_.pos.x() = 0.0;
         if (!isfinite(transform_es_.pos.y())) transform_es_.pos.y() = 0.0;
         if (!isfinite(transform_es_.pos.z())) transform_es_.pos.z() = 0.0;
-
+//计算旋转平移量，如果很小就停止迭代
         float delta_r = RadToDeg(R_SO3.unit_quaternion().angularDistance(transform_es_.rot));
         float delta_t = sqrt(pow(mat_X(3, 0) * 100, 2) +
             pow(mat_X(4, 0) * 100, 2) +
             pow(mat_X(5, 0) * 100, 2));
 
-        if (delta_r < delta_r_abort_ && delta_t < delta_t_abort_) {
+        if (delta_r < delta_r_abort_ && delta_t < delta_t_abort_) {//迭代终止条件
           DLOG(INFO) << "iter_count: " << iter_count;
           break;
         }
 
       } /// iteration
     } /// enough points
+    //transform_sum_ 两点云间的变换，从第一帧变到第二帧
+    
     Twist<float> transform_se = transform_es_.inverse();
     Twist<float> transform_sum_tmp = transform_sum_ * transform_se;
     transform_sum_ = transform_sum_tmp;
-
+    
+    
     ROS_DEBUG_STREAM(transform_sum_.pos.transpose() << endl << transform_sum_.rot.coeffs().transpose());
 
     TransformToEnd(corner_points_less_sharp_);
@@ -675,6 +748,10 @@ void PointOdometry::Process() {
 
 } // PointOdometry::Process
 
+/*
+ * function: pub the results; the transform_sum( the transform from first pcl to second pcl)
+ *    laser_odometry_msg_ is lidar only!!!
+ */
 void PointOdometry::PublishResults() {
 
   if (!is_ros_setup_) {
