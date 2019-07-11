@@ -714,7 +714,7 @@ void PointOdometry::Process() {
 
       } /// iteration
     } /// enough points
-    //transform_sum_ 两点云间的变换，从第一帧变到第二帧
+    //transform_sum_ 
     
     Twist<float> transform_se = transform_es_.inverse();
     Twist<float> transform_sum_tmp = transform_sum_ * transform_se;
@@ -807,7 +807,7 @@ void PointOdometry::PublishResults() {
       PointT compact_point;
 
       {
-        // NOTE: push_back odom
+        // NOTE: push_back odom  位姿、大小、点云
         compact_point.x = transform_sum_.pos.x();
         compact_point.y = transform_sum_.pos.y();
         compact_point.z = transform_sum_.pos.z();
@@ -830,7 +830,7 @@ void PointOdometry::PublishResults() {
         compact_data += (*last_surf_cloud_);
         compact_data += (*full_cloud_);
       }
-
+      LOG(INFO)<<compact_data.size();
       PublishCloudMsg(pub_compact_data_, compact_data, sweepTime, "/camera");
 
       ROS_DEBUG_STREAM("encode compact data and publish time: " << tic_toc_encoder.Toc() << " ms");

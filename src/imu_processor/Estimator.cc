@@ -468,6 +468,7 @@ void Estimator::SetupRos(ros::NodeHandle &nh) {
 
 // TODO: this function can be simplified
 /*
+ *  ProcessLaserOdom(transform_to_init_, header) transform_to_init = transform_aft_mapped_
  *  功能：
  *     雷达信息处理，实现里程计功能，包括初始化、优化等
  *  参数：
@@ -837,21 +838,21 @@ void Estimator::ProcessLaserOdom(const Transform &transform_in, const std_msgs::
 
 }
 
-//高频低频
+/*两帧点云之间利用imu信息得到的建图变换坐标*/
 void Estimator::ProcessCompactData(const sensor_msgs::PointCloud2ConstPtr &compact_data,
                                    const std_msgs::Header &header) {
-  /// 1. process compact data
+  /// 1. process compact data 给出点云数据
   PointMapping::CompactDataHandler(compact_data);
 
   if (stage_flag_ == INITED) {
     Transform trans_prev(Eigen::Quaterniond(Rs_[estimator_config_.window_size - 1]).cast<float>(),
-                         Ps_[estimator_config_.window_size - 1].cast<float>());
+                         Ps_[estimator_config_.window_size - 1].cast<float>());   //.....................transform from imu_start to imu_prev
     Transform trans_curr(Eigen::Quaterniond(Rs_.last()).cast<float>(),
-                         Ps_.last().cast<float>());
+                         Ps_.last().cast<float>());                               //.....................transform from imu_start to imu_curr
+ 
+    Transform d_trans = trans_prev.inverse() * trans_curr;                        //.....................transform between two_imu,imu_prev to imu_curr
 
-    Transform d_trans = trans_prev.inverse() * trans_curr;
-
-    Transform transform_incre(transform_bef_mapped_.inverse() * transform_sum_.transform());
+    Transform transform_incre(transform_bef_mapped_.inverse() * transform_sum_.transform());//...........the last one(from last time to init) * the new one(from new time to init) == the transform increment
 
 //    DLOG(INFO) << "base incre in laser world: " << d_trans;
 //    DLOG(INFO) << "incre in laser world: " << transform_incre;
@@ -863,7 +864,7 @@ void Estimator::ProcessCompactData(const sensor_msgs::PointCloud2ConstPtr &compa
 
     if (estimator_config_.imu_factor) {
       //    // WARNING: or using direct date?
-      transform_tobe_mapped_bef_ = transform_tobe_mapped_ * transform_lb_ * d_trans * transform_lb_.inverse();
+      transform_tobe_mapped_bef_ = transform_tobe_mapped_ * transform_lb_ * d_trans * transform_lb_.inverse(); //
       transform_tobe_mapped_ = transform_tobe_mapped_bef_;
     } else {
       TransformAssociateToMap();
@@ -2749,6 +2750,7 @@ void Estimator::ProcessEstimation() {
     PairMeasurements measurements;
     std::unique_lock<std::mutex> buf_lk(buf_mutex_);
     con_.wait(buf_lk, [&] {
+//0711:      //get the measurements data:两帧点云数据以及其中的imu信息
       return (measurements = GetMeasurements()).size() != 0;
     });
     buf_lk.unlock();
@@ -2781,10 +2783,11 @@ void Estimator::ProcessEstimation() {
           rx = imu_msg->angular_velocity.x;
           ry = imu_msg->angular_velocity.y;
           rz = imu_msg->angular_velocity.z;
+//0711;  取measurements中imu信息对imu进行预处理	  
           ProcessImu(dt, Vector3d(ax, ay, az), Vector3d(rx, ry, rz), imu_msg->header);
 
         } else {
-
+//0711: 插入imu数据？
           // NOTE: interpolate imu measurement
           double dt_1 = laser_odom_time - curr_time_;
           double dt_2 = imu_time - laser_odom_time;
@@ -2810,7 +2813,7 @@ void Estimator::ProcessEstimation() {
       ROS_DEBUG("processing laser data with stamp %f \n", compact_data_msg->header.stamp.toSec());
 
       TicToc t_s;
-
+//0711  对点云的处理？
       this->ProcessCompactData(compact_data_msg, compact_data_msg->header);
 
 //      const auto &pos_from_msg = compact_data_msg->pose.pose.position;
