@@ -40,13 +40,13 @@ void MeasurementManager::SetupRos(ros::NodeHandle &nh) {
   nh_ = nh;
 
   sub_imu_ = nh_.subscribe<sensor_msgs::Imu>(mm_config_.imu_topic,
-                                             1000,
+                                             5000,
                                              &MeasurementManager::ImuHandler,
                                              this,
                                              ros::TransportHints().tcpNoDelay());
 
   sub_compact_data_ = nh_.subscribe<sensor_msgs::PointCloud2>(mm_config_.compact_data_topic,
-                                                              10,
+                                                              100,
                                                               &MeasurementManager::CompactDataHandler,
                                                               this);
 //  sub_laser_odom_ =

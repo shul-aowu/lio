@@ -17,7 +17,7 @@ opt_window_size: 5
 init_window_factor: 1
 
 # Extrinsic parameter between IMU and Camera (adapted from VINS-mono)
-estimate_extrinsic: 1   # 0  Have an accurate extrinsic parameters. We will trust the following imu^R_cam, imu^T_cam, don't change it.
+estimate_extrinsic: 0   # 0  Have an accurate extrinsic parameters. We will trust the following imu^R_cam, imu^T_cam, don't change it.
                         # 1  Have an initial guess about extrinsic parameters. We will optimize around your initial guess.
                         # 2  Don't know anything about extrinsic parameters. You don't need to give R,T. We will try to calibrate it. Do some rotation movement at beginning.
 opt_extrinsic: 1
@@ -25,39 +25,25 @@ opt_extrinsic: 1
 extrinsic_rotation: !!opencv-matrix
   rows: 3
   cols: 3
-  dt: d
-#  data: [0.707107,0,-0.707107,
-#         0,1,0,
-#         0.707107,0,0.707107]  #-45du
+  dt: d 
 #  data: [0.707107,0,0.707107,
 #         0,1,0,
 #         -0.707107,0,0.707107]  #45du
 #  data: [0.996206,-0.000875961,-0.0870252,
 #         0.000994554,0.999999,0.0013194,
 #         0.0870239,-0.00140095,0.996205] #-5du
-#  data: [0.996206,0.000875961,0.0870252,
-#         -0.000764038,0.999999,-0.0013194,
-#         -0.0870263,0.0012479,0.996205]   #5度imu
+#  data: [-0.0169071,-0.999424,0.0294197,
+#         0.997787,-0.0149724,0.0647842,
+#         -0.0643064,0.0304499,0.997466] # 未转
+  data: [0.997882,-0.0604034,0.0241634,
+         0.0611939,0.997566,-0.0334329,
+         -0.0220851,0.0348407,0.999149]   #-0.762569
 #  data: [0.999999,0.000879296,0.00132443,
 #         -0.000760702,0.996206,-0.0870251,
-#         -0.00139592,0.087024,0.996205]#y5
-#  data: [ 0.777848,0.628268,0.0152024,
-#         -0.623886,0.774881,-0.101612,
-#         -0.0756195,0.0695538,0.994708]
-  data: [1,  0,  0,
-         0,  1,  0,
-         0,  0,  1]
-#  data: [0.0254651,0.998924,-0.0387631,
-#            -0.999661  , 0.0252385, -0.00632322,
-#           -0.0053381 ,   0.038911  ,  0.999228]
-#  data: [ 0.908849,-0.41536,0.0383384,
-#          0.415794,0.909451, -0.00374099,
-#          -0.033313,0.0193408,0.999258]
-
-
-
-
-
+#         -0.00139592,0.087024,0.996205] #y5
+#  data: [1,  0,  0,
+#         0,  1,  0,
+#         0,  0,  1]
 
  
  #Translation from imu frame to laser frame, laser^T_imu
@@ -65,9 +51,9 @@ extrinsic_translation: !!opencv-matrix
   rows: 3
   cols: 1
   dt: d
-  data: [0,0,0]
-#  data: [0,-0.46,-1.8]
-
+#  data: [0,0,0]
+  data: [0.0604,0.05340,-1.20351]
+#  data: [0.0420768857002,0.00069268909283,-1.43413674831]
 # optimization options
 run_optimization: 1
 
@@ -92,9 +78,10 @@ acc_n: 0.2
 gyr_n: 0.02
 acc_w: 0.0002
 gyr_w: 2.0e-5
-g_norm: 9.80
+g_norm: 9.8
 
 # lidar deskew
+#enable_deskew: 0
 enable_deskew: 1
 cutoff_deskew: 0
 

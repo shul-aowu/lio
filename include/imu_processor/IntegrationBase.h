@@ -67,6 +67,7 @@ struct IntegrationBaseConfig {
   double acc_w = 0.0002;
   double gyr_w = 2.0e-5;
   double g_norm = 9.805;
+  //double g_norm =9.748798;
 };
 
 class IntegrationBase {
@@ -87,8 +88,8 @@ class IntegrationBase {
         covariance_{Matrix<double, 15, 15>::Zero()},
         sum_dt_{0.0},
         delta_p_{Vector3d::Zero()},
-        //delta_q_{Quaterniond::Identity()},
-        delta_q_{0.999051,0.000642436,0.0435542,-0.000410389},//5
+        delta_q_{Quaterniond::Identity()},
+       // delta_q_{0.999051,0.000642436,0.0435542,-0.000410389},//5
        //delta_q_{0.999051,-0.000680734,-0.0435536,0.000468073},//-5
         //delta_q_{0.999051,0.0435542,0.000642436,-0.000410389},
         delta_v_{Vector3d::Zero()} {

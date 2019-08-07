@@ -218,7 +218,6 @@ void RefineGravityAccBias(CircularBuffer<PairTimeLaserTransform> &all_laser_tran
   typedef Sophus::SO3d SO3;
 
   Vector3d &g_refined = g_approx;
-
   size_t size_velocities = all_laser_transforms.size();
   size_t num_states = size_velocities * 3 + 2;
 
@@ -403,7 +402,8 @@ bool ImuInitializer::EstimateExtrinsicRotation(CircularBuffer<PairTimeLaserTrans
 
   Transform transform_bl = transform_lb.inverse();
   Eigen::Quaterniond rot_bl = transform_bl.rot.template cast<double>();
-  size_t window_size = all_laser_transforms.size() - 1;
+  //size_t window_size = all_laser_transforms.size() - 1;
+  size_t window_size = 50;
   //0614: QN*q(cb)=0   A == Q;
   Eigen::MatrixXd A(window_size * 4, 4);
 
@@ -414,6 +414,7 @@ bool ImuInitializer::EstimateExtrinsicRotation(CircularBuffer<PairTimeLaserTrans
 
     //0614: Quaternion frame transform     ..
     Eigen::Quaterniond delta_qij_imu = laser_trans_j.second.pre_integration->delta_q_;
+    //IMU经过预积分得到的旋转矩阵
     Eigen::Quaterniond delta_qij_laser
         = (laser_trans_i.second.transform.rot.conjugate() * laser_trans_j.second.transform.rot).template cast<double>();
     Eigen::Quaterniond delta_qij_laser_from_imu = rot_bl.conjugate() * delta_qij_imu * rot_bl;
@@ -467,11 +468,11 @@ bool ImuInitializer::EstimateExtrinsicRotation(CircularBuffer<PairTimeLaserTrans
   LOG(INFO) << "extrinsic rotation: " << "           "<<R;
   Eigen::Vector3d eularangle = R.eulerAngles(2,1,0);
   LOG(INFO) << "OULAR ANGLES:" << "  "<<eularangle;
-  Eigen::Isometry3f tran = Eigen::Isometry3f::Identity();
-  tran.rotate(Eigen::AngleAxisf(0.362569 / 180.0 * M_PI, Eigen::Vector3f::UnitX()) *
-                Eigen::AngleAxisf(-2.22152 / 180.0 * M_PI, Eigen::Vector3f::UnitY()) *
-                Eigen::AngleAxisf((-88.5397)/ 180.0 * M_PI, Eigen::Vector3f::UnitZ()));
-  LOG(INFO) << "extrinsic rotation: " << "                  "<< tran.rotation();
+//   Eigen::Isometry3f tran = Eigen::Isometry3f::Identity();
+//   tran.rotate(Eigen::AngleAxisf(0.362569 / 180.0 * M_PI, Eigen::Vector3f::UnitX()) *
+//                 Eigen::AngleAxisf(-2.22152 / 180.0 * M_PI, Eigen::Vector3f::UnitY()) *
+//                 Eigen::AngleAxisf((-88.5397)/ 180.0 * M_PI, Eigen::Vector3f::UnitZ()));
+//   LOG(INFO) << "extrinsic rotation: " << "                  "<< tran.rotation();
 //   Eigen::Isometry3f tran2 = Eigen::Isometry3f::Identity();
 //   tran.rotate(Eigen::AngleAxisf(0 / 180.0 * M_PI, Eigen::Vector3f::UnitX()) *
 //                 Eigen::AngleAxisf(5 / 180.0 * M_PI, Eigen::Vector3f::UnitY()) *
@@ -525,7 +526,7 @@ bool ImuInitializer::Initialization(CircularBuffer<PairTimeLaserTransform> &all_
   };
 //  DLOG(INFO) << "ApproximateGravity time: " << tic_toc.Toc() << " ms";
   RefineGravityAccBias(all_laser_transforms, Vs, Bgs, g, transform_lb, R_WI);
-//  DLOG(INFO) << "RefineGravityAccBias time: " << tic_toc.Toc() << " ms";
+  //DLOG(INFO) << "RefineGravityAccBias time: " << tic_toc.Toc() << " ms";
 //  DLOG(INFO) << "UpdateVecocities time: " << tic_toc.Toc() << " ms";
   return true;
 

@@ -94,7 +94,7 @@ struct EstimatorConfig {
   bool update_laser_imu = true;
   bool gravity_fix = true;
   bool plane_projection_factor = true;
-  bool imu_factor = true;
+  bool imu_factor = false;
   bool point_distance_factor = false;
   bool prior_factor = false;
   bool marginalization_factor = true;
@@ -120,6 +120,10 @@ class Estimator : public MeasurementManager, public PointMapping {
 
   void ProcessEstimation();
   void ProcessImu(double dt,
+                  const Vector3d &linear_acceleration,
+                  const Vector3d &angular_velocity,
+                  const std_msgs::Header &header);
+  void ProcessImu_only(double dt,
                   const Vector3d &linear_acceleration,
                   const Vector3d &angular_velocity,
                   const std_msgs::Header &header);

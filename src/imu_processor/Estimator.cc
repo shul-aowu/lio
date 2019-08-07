@@ -310,15 +310,15 @@ void Estimator::SetupRos(ros::NodeHandle &nh) {
 //  predict_odom_.header.frame_id = "/camera_init";
   predict_odom_.header.frame_id = "/world";
   predict_odom_.child_frame_id = "/imu_predict";
-  pub_predict_odom_ = nh.advertise<nav_msgs::Odometry>("/predict_odom", 100);
+  pub_predict_odom_ = nh.advertise<nav_msgs::Odometry>("/predict_odom", 1000);
 
   laser_odom_.header.frame_id = "/world";
   laser_odom_.child_frame_id = "/laser_predict";
-  pub_laser_odom_ = nh.advertise<nav_msgs::Odometry>("/predict_laser_odom", 100);
+  pub_laser_odom_ = nh.advertise<nav_msgs::Odometry>("/predict_laser_odom", 1000);
 
   local_odom_.header.frame_id = "/world";
   local_odom_.child_frame_id = "/laser_predict";
-  pub_local_odom_ = nh.advertise<nav_msgs::Odometry>("/local_laser_odom", 100);
+  pub_local_odom_ = nh.advertise<nav_msgs::Odometry>("/local_laser_odom", 1000);
 
   pub_plane_normal_ = nh.advertise<visualization_msgs::MarkerArray>("/debug/plane_normal", 5);
 
@@ -333,9 +333,119 @@ void Estimator::SetupRos(ros::NodeHandle &nh) {
   pub_predict_full_points_ = nh.advertise<sensor_msgs::PointCloud2>("/predict/full_points", 2);
   pub_predict_corrected_full_points_ = nh.advertise<sensor_msgs::PointCloud2>("/predict/corrected_full_points", 2);
 
-  pub_extrinsic_ = nh.advertise<geometry_msgs::PoseStamped>("/extrinsic_lb", 10);
+  pub_extrinsic_ = nh.advertise<geometry_msgs::PoseStamped>("/extrinsic_lb", 100);
 }
 
+// void Estimator::ProcessImu_only(double dt,
+//                            const Vector3d &linear_acceleration,
+//                            const Vector3d &angular_velocity,
+//                            const std_msgs::Header &header){
+//   if (!first_imu_) {
+//     first_imu_ = true;
+//     acc_last_ = linear_acceleration;
+//     gyr_last_ = angular_velocity;
+//     dt_buf_.push(vector<double>());
+//     linear_acceleration_buf_.push(vector<Vector3d>());
+//     angular_velocity_buf_.push(vector<Vector3d>());
+// 
+//     Eigen::Matrix3d I3x3;
+//     I3x3.setIdentity();
+// //       I3x3<<0.996206,0.000875961,0.0870252,
+// //            -0.000764038,0.999999,-0.0013194,
+// //            -0.0870263,0.0012479,0.996205;
+//     LOG(INFO)<<I3x3;
+//     Rs_.push(I3x3);
+//     Ps_.push(Vector3d{0, 0, 0});
+//     
+//     Vs_.push(Vector3d{0, 0, 0});
+//     Bgs_.push(Vector3d{0, 0, 0});
+//     Bas_.push(Vector3d{0, 0, 0});
+// //    pre_integrations_.push(std::make_shared<IntegrationBase>(IntegrationBase(acc_last_,
+// //                                                                             gyr_last_,
+// //                                                                             Bas_[cir_buf_count_],
+// //                                                                             Bgs_[cir_buf_count_],
+// //                                                                             estimator_config_.pim_config)));
+//     //region fix the map
+// #ifdef FIX_MAP
+//     Ps_linearized_.push(Vector3d{0, 0, 0});
+//     Rs_linearized_.push(I3x3);
+// #endif
+//     //endregion
+//   }
+// //  if (!pre_integrations_[cir_buf_count_]) {
+// //    pre_integrations_.push(std::make_shared<IntegrationBase>(IntegrationBase(acc_last_,
+// //                                                                             gyr_last_,
+// //                                                                             Bas_[cir_buf_count_],
+// //                                                                             Bgs_[cir_buf_count_],
+// //                                                                             estimator_config_.pim_config)));
+// //  }
+// //! 进入预计分环节
+//   // NOTE: Do not update tmp_pre_integration_ until first laser comes
+//   if (cir_buf_count_ != 0) {
+// 
+// /*    shared_ptr<IntegrationBase>  imu;
+//     imu = std::make_shared<IntegrationBase>(IntegrationBase(acc_last_,
+//                                                                            gyr_last_,
+//                                                                            0,
+//                                                                            0,
+//                                                                            estimator_config_.pim_config));
+//     imu->push_back(dt,linear_acceleration,angular_velocity);
+//   CircularBuffer<vector<double> > dt_buf_imu{estimator_config_.window_size + 1};
+//   CircularBuffer<vector<Vector3d> > linear_acceleration_buf_imu{estimator_config_.window_size + 1};
+//   CircularBuffer<vector<Vector3d> > angular_velocity_buf_imu{estimator_config_.window_size + 1}; */   
+//     tmp_pre_integration_->push_back(dt, linear_acceleration, angular_velocity);
+// 
+//     dt_buf_[cir_buf_count_].push_back(dt);
+//     linear_acceleration_buf_[cir_buf_count_].push_back(linear_acceleration);
+//     angular_velocity_buf_[cir_buf_count_].push_back(angular_velocity);
+// 
+// //此处g_vec_符号问题：在integrationbase已设置为负。
+// //对应中值离散公式，区别于midpre中的是计算增量imu信息
+// //提供imu计算的当前位置，速度，作为优化的初值    这里是实际的，上一个预积分的是增量
+//     size_t j = cir_buf_count_;
+//     Vector3d un_acc_0 = Rs_[j] * (acc_last_ - Bas_[j]) + g_vec_;
+//     Vector3d un_gyr = 0.5 * (gyr_last_ + angular_velocity) - Bgs_[j];
+//     Rs_[j] *= DeltaQ(un_gyr * dt).toRotationMatrix();
+//     Vector3d un_acc_1 = Rs_[j] * (linear_acceleration - Bas_[j]) + g_vec_;
+//     Vector3d un_acc = 0.5 * (un_acc_0 + un_acc_1);
+//     Ps_[j] += dt * Vs_[j] + 0.5 * dt * dt * un_acc;
+//     Vs_[j] += dt * un_acc;
+// 
+// //记录imu
+//     StampedTransform imu_tt;
+//     imu_tt.time = header.stamp.toSec();
+//     imu_tt.transform.pos = Ps_[j].cast<float>();
+//     imu_tt.transform.rot = Eigen::Quaternionf(Rs_[j].cast<float>());
+//     imu_stampedtransforms.push(imu_tt);
+// //    DLOG(INFO) << imu_tt.transform;
+//   }
+//   acc_last_ = linear_acceleration;
+//   gyr_last_ = angular_velocity;
+// 
+// //记录imu预测的位姿，发布imu预测里程计信息
+//   if (stage_flag_ == INITED) {
+//     predict_odom_.header.stamp = header.stamp;
+//     predict_odom_.header.seq += 1;
+//     Eigen::Quaterniond quat(Rs_.last());
+//     predict_odom_.pose.pose.orientation.x = quat.x();
+//     predict_odom_.pose.pose.orientation.y = quat.y();
+//     predict_odom_.pose.pose.orientation.z = quat.z();
+//     predict_odom_.pose.pose.orientation.w = quat.w();
+//     predict_odom_.pose.pose.position.x = Ps_.last().x();
+//     predict_odom_.pose.pose.position.y = Ps_.last().y();
+//     predict_odom_.pose.pose.position.z = Ps_.last().z();
+//     predict_odom_.twist.twist.linear.x = Vs_.last().x();
+//     predict_odom_.twist.twist.linear.y = Vs_.last().y();
+//     predict_odom_.twist.twist.linear.z = Vs_.last().z();
+//     predict_odom_.twist.twist.angular.x = Bas_.last().x();
+//     predict_odom_.twist.twist.angular.y = Bas_.last().y();
+//     predict_odom_.twist.twist.angular.z = Bas_.last().z();
+//     pub_predict_odom_.publish(predict_odom_);
+//   }
+//   
+// 			     
+// }
+  
 /*
  *  功能：
  *    imu信息处理装填
@@ -359,12 +469,13 @@ void Estimator::SetupRos(ros::NodeHandle &nh) {
 
     Eigen::Matrix3d I3x3;
     I3x3.setIdentity();
-//      I3x3<<0.996206,0.000875961,0.0870252,
-//           -0.000764038,0.999999,-0.0013194,
-//           -0.0870263,0.0012479,0.996205;
-    LOG(INFO)<<I3x3;
-    Ps_.push(Vector3d{0, 0, 0});
+//       I3x3<<0.996206,0.000875961,0.0870252,
+//            -0.000764038,0.999999,-0.0013194,
+//            -0.0870263,0.0012479,0.996205;
+//    LOG(INFO)<<I3x3;
     Rs_.push(I3x3);
+    Ps_.push(Vector3d{0, 0, 0});
+    
     Vs_.push(Vector3d{0, 0, 0});
     Bgs_.push(Vector3d{0, 0, 0});
     Bas_.push(Vector3d{0, 0, 0});
@@ -391,6 +502,16 @@ void Estimator::SetupRos(ros::NodeHandle &nh) {
   // NOTE: Do not update tmp_pre_integration_ until first laser comes
   if (cir_buf_count_ != 0) {
 
+/*    shared_ptr<IntegrationBase>  imu;
+    imu = std::make_shared<IntegrationBase>(IntegrationBase(acc_last_,
+                                                                           gyr_last_,
+                                                                           0,
+                                                                           0,
+                                                                           estimator_config_.pim_config));
+    imu->push_back(dt,linear_acceleration,angular_velocity);
+  CircularBuffer<vector<double> > dt_buf_imu{estimator_config_.window_size + 1};
+  CircularBuffer<vector<Vector3d> > linear_acceleration_buf_imu{estimator_config_.window_size + 1};
+  CircularBuffer<vector<Vector3d> > angular_velocity_buf_imu{estimator_config_.window_size + 1}; */   
     tmp_pre_integration_->push_back(dt, linear_acceleration, angular_velocity);
 
     dt_buf_[cir_buf_count_].push_back(dt);
@@ -438,29 +559,29 @@ void Estimator::SetupRos(ros::NodeHandle &nh) {
     predict_odom_.twist.twist.angular.x = Bas_.last().x();
     predict_odom_.twist.twist.angular.y = Bas_.last().y();
     predict_odom_.twist.twist.angular.z = Bas_.last().z();
-//0702 info
-    Eigen::Matrix3d rotation_matrix = Rs_.last();
-    Eigen::Vector3d euler_angles = rotation_matrix.eulerAngles(2,1,0);
-    float r,p,y;
-    r=euler_angles[2]*180/3.1415926;
-    p=euler_angles[1]*180/3.1415926;
-    y=euler_angles[0]*180/3.1415926;
-    LOG(INFO) /*<< "orientation:" << quat.x()<<","
-                                << quat.y()<<","
-			        << quat.z()<<","
-			        << quat.w()<<","*/
-		<<"position:"   << predict_odom_.pose.pose.position.x<<","
-		                << predict_odom_.pose.pose.position.y<<","
-				<< predict_odom_.pose.pose.position.z<<","
-		<<"euler_rpy:"<<r<<","
-		                <<p<<","
-				<<y<<","
-		/*<<"Vs_.last():" <<predict_odom_.twist.twist.linear.x<<","
-                                <<predict_odom_.twist.twist.linear.y<<","
-				<<predict_odom_.twist.twist.linear.z<<","
-	        <<"Bas_.last():"<<predict_odom_.twist.twist.angular.x<<","
-		                <<predict_odom_.twist.twist.angular.y<<","
-				<<predict_odom_.twist.twist.angular.z<<","*/;
+// //0702 info
+//     Eigen::Matrix3d rotation_matrix = Rs_.last();
+//     Eigen::Vector3d euler_angles = rotation_matrix.eulerAngles(2,1,0);
+//     float r,p,y;
+//     r=euler_angles[2]*180/3.1415926;
+//     p=euler_angles[1]*180/3.1415926;
+//     y=euler_angles[0]*180/3.1415926;
+//     LOG(INFO) /*<< "orientation:" << quat.x()<<","
+//                                 << quat.y()<<","
+// 			        << quat.z()<<","
+// 			        << quat.w()<<","*/
+// 		<<"position:"   << predict_odom_.pose.pose.position.x<<","
+// 		                << predict_odom_.pose.pose.position.y<<","
+// 				<< predict_odom_.pose.pose.position.z<<","
+// 		<<"euler_rpy:"<<r<<","
+// 		                <<p<<","
+// 				<<y<<","
+// 		/*<<"Vs_.last():" <<predict_odom_.twist.twist.linear.x<<","
+//                                 <<predict_odom_.twist.twist.linear.y<<","
+// 				<<predict_odom_.twist.twist.linear.z<<","
+// 	        <<"Bas_.last():"<<predict_odom_.twist.twist.angular.x<<","
+// 		                <<predict_odom_.twist.twist.angular.y<<","
+// 				<<predict_odom_.twist.twist.angular.z<<","*/;
     pub_predict_odom_.publish(predict_odom_);
   }
 
@@ -970,7 +1091,7 @@ bool Estimator::RunInitialization() {
   Eigen::Vector3d g_vec_in_laser;
   bool init_result
       = ImuInitializer::Initialization(all_laser_transforms_, Vs_, Bas_, Bgs_, g_vec_in_laser, transform_lb_, R_WI_);
-//  init_result = false;
+  //bool init_result = true;
 
 //  Q_WI_ = R_WI_;
 //  g_vec_ = R_WI_ * Eigen::Vector3d(0.0, 0.0, -1.0) * g_norm_;
@@ -2783,6 +2904,7 @@ void Estimator::ProcessEstimation() {
           rx = imu_msg->angular_velocity.x;
           ry = imu_msg->angular_velocity.y;
           rz = imu_msg->angular_velocity.z;
+	  //ProcessImu_only(dt, Vector3d(ax, ay, az), Vector3d(rx, ry, rz), imu_msg->header);
 //0711;  取measurements中imu信息对imu进行预处理	  
           ProcessImu(dt, Vector3d(ax, ay, az), Vector3d(rx, ry, rz), imu_msg->header);
 

@@ -130,9 +130,9 @@ void MapBuilder::SetupRos(ros::NodeHandle &nh) {
   nh.param("enable_4d", enable_4d_, true);
   nh.param("skip_count", skip_count_, 2);
 
-  pub_laser_cloud_surround_ = nh.advertise<sensor_msgs::PointCloud2>("laser_cloud_surround", 2);
-  pub_full_cloud_ = nh.advertise<sensor_msgs::PointCloud2>("cloud_registered", 2);
-  pub_odom_aft_mapped_ = nh.advertise<nav_msgs::Odometry>("aft_mapped_to_init", 5);
+  pub_laser_cloud_surround_ = nh.advertise<sensor_msgs::PointCloud2>("laser_cloud_surround", 20);
+  pub_full_cloud_ = nh.advertise<sensor_msgs::PointCloud2>("cloud_registered", 20);
+  pub_odom_aft_mapped_ = nh.advertise<nav_msgs::Odometry>("aft_mapped_to_init", 50);
 
   /// for test
 //  pub_diff_odometry_ = nh.advertise<nav_msgs::Odometry>("/laser_odom_to_last", 5);
@@ -140,16 +140,16 @@ void MapBuilder::SetupRos(ros::NodeHandle &nh) {
 
   // subscribe to scan registration topics
   sub_laser_cloud_corner_last_ = nh.subscribe<sensor_msgs::PointCloud2>
-      ("/laser_cloud_corner_last", 2, &PointMapping::LaserCloudCornerLastHandler, (PointMapping *) this);
+      ("/laser_cloud_corner_last", 200, &PointMapping::LaserCloudCornerLastHandler, (PointMapping *) this);
 
   sub_laser_cloud_surf_last_ = nh.subscribe<sensor_msgs::PointCloud2>
-      ("/laser_cloud_surf_last", 2, &PointMapping::LaserCloudSurfLastHandler, (PointMapping *) this);
+      ("/laser_cloud_surf_last", 200, &PointMapping::LaserCloudSurfLastHandler, (PointMapping *) this);
 
   sub_laser_full_cloud_ = nh.subscribe<sensor_msgs::PointCloud2>
-      ("/full_odom_cloud", 2, &PointMapping::LaserFullCloudHandler, (PointMapping *) this);
+      ("/full_odom_cloud", 200, &PointMapping::LaserFullCloudHandler, (PointMapping *) this);
 
   sub_laser_odometry_ = nh.subscribe<nav_msgs::Odometry>
-      ("/laser_odom_to_init", 2, &PointMapping::LaserOdometryHandler, (PointMapping *) this);
+      ("/laser_odom_to_init", 200, &PointMapping::LaserOdometryHandler, (PointMapping *) this);
 
 //  sub_imu_trans_ = node.subscribe<sensor_msgs::PointCloud2>
 //      ("/imu_trans", 5, &LaserOdometry::ImuTransHandler, this);
@@ -239,16 +239,16 @@ void MapBuilder::PublishMapBuilderResults() {
   odom_aft_mapped_.pose.pose.position.y = transform_aft_mapped_.pos.y();
   odom_aft_mapped_.pose.pose.position.z = transform_aft_mapped_.pos.z();
 //0703
-  Eigen::Quaterniond x;
-x={geo_quat.w,geo_quat.x,geo_quat.y,geo_quat.z};
-Eigen::Vector3d euler_angles1=x.toRotationMatrix().eulerAngles(2,1,0);
-float r1,p1,y1;
-    r1=euler_angles1[2]*180/3.1415926;
-    p1=euler_angles1[1]*180/3.1415926;
-    y1=euler_angles1[0]*180/3.1415926;
-    LOG(INFO)<<"euler_rpy:"<<r1<<","
-		                <<p1<<","
-				<<y1<<",";
+//   Eigen::Quaterniond x;
+// x={geo_quat.w,geo_quat.x,geo_quat.y,geo_quat.z};
+// Eigen::Vector3d euler_angles1=x.toRotationMatrix().eulerAngles(2,1,0);
+// float r1,p1,y1;
+//     r1=euler_angles1[2]*180/3.1415926;
+//     p1=euler_angles1[1]*180/3.1415926;
+//     y1=euler_angles1[0]*180/3.1415926;
+//     LOG(INFO)<<"euler_rpy:"<<r1<<","
+// 		                <<p1<<","
+// 				<<y1<<",";
 //  odom_aft_mapped_.twist.twist.angular.x = transform_bef_mapped_.rot.x();
 //  odom_aft_mapped_.twist.twist.angular.y = transform_bef_mapped_.rot.y();
 //  odom_aft_mapped_.twist.twist.angular.z = transform_bef_mapped_.rot.z();

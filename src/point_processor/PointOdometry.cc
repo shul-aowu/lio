@@ -110,7 +110,7 @@ void PointOdometry::SetupRos(ros::NodeHandle &nh) {
   enable_odom_service_ = nh.advertiseService("/enable_odom", &PointOdometry::EnableOdom, this);
 //compact_data==true
   if (compact_data_) {
-    pub_compact_data_ = nh.advertise<sensor_msgs::PointCloud2>("/compact_data", 2);
+    pub_compact_data_ = nh.advertise<sensor_msgs::PointCloud2>("/compact_data", 200);
   } else {
     // advertise laser odometry topics
     pub_laser_cloud_corner_last_ = nh.advertise<sensor_msgs::PointCloud2>("/laser_cloud_corner_last", 2);
@@ -118,26 +118,26 @@ void PointOdometry::SetupRos(ros::NodeHandle &nh) {
     pub_full_cloud_ = nh.advertise<sensor_msgs::PointCloud2>("/full_odom_cloud", 2);
   }
 
-  pub_laser_odometry_ = nh.advertise<nav_msgs::Odometry>("/laser_odom_to_init", 5);
+  pub_laser_odometry_ = nh.advertise<nav_msgs::Odometry>("/laser_odom_to_init", 50);
 
   /// for test
-  pub_diff_odometry_ = nh.advertise<nav_msgs::Odometry>("/laser_odom_to_last", 5);
+  pub_diff_odometry_ = nh.advertise<nav_msgs::Odometry>("/laser_odom_to_last", 50);
 
   // subscribe to scan registration topics
   sub_corner_points_sharp_ = nh.subscribe<sensor_msgs::PointCloud2>
-      ("/laser_cloud_sharp", 2, &PointOdometry::LaserCloudSharpHandler, this);
+      ("/laser_cloud_sharp", 200, &PointOdometry::LaserCloudSharpHandler, this);
 
   sub_corner_points_less_sharp_ = nh.subscribe<sensor_msgs::PointCloud2>
-      ("/laser_cloud_less_sharp", 2, &PointOdometry::LaserCloudLessSharpHandler, this);
+      ("/laser_cloud_less_sharp", 200, &PointOdometry::LaserCloudLessSharpHandler, this);
 
   sub_surf_points_flat_ = nh.subscribe<sensor_msgs::PointCloud2>
-      ("/laser_cloud_flat", 2, &PointOdometry::LaserCloudFlatHandler, this);
+      ("/laser_cloud_flat", 200, &PointOdometry::LaserCloudFlatHandler, this);
 
   sub_surf_points_less_flat_ = nh.subscribe<sensor_msgs::PointCloud2>
-      ("/laser_cloud_less_flat", 2, &PointOdometry::LaserCloudLessFlatHandler, this);
+      ("/laser_cloud_less_flat", 200, &PointOdometry::LaserCloudLessFlatHandler, this);
 
   sub_full_cloud_ = nh.subscribe<sensor_msgs::PointCloud2>
-      ("/full_cloud", 2, &PointOdometry::LaserFullCloudHandler, this);
+      ("/full_cloud", 200, &PointOdometry::LaserFullCloudHandler, this);
 
 //  sub_imu_trans_ = node.subscribe<sensor_msgs::PointCloud2>
 //      ("/imu_trans", 5, &LaserOdometry::ImuTransHandler, this);
