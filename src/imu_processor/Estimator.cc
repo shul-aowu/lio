@@ -666,7 +666,7 @@ void Estimator::ProcessLaserOdom(const Transform &transform_in, const std_msgs::
           DLOG(INFO) << "Ps_: " << Ps_.size();
           DLOG(INFO) << "size_surf_stack_: " << size_surf_stack_.size();
           DLOG(INFO) << "size_corner_stack_: " << size_corner_stack_.size();
-          DLOG(INFO) << "all_laser_transforms_: " << all_laser_transforms_.size();
+          LOG(INFO) << "all_laser_transforms_: " << all_laser_transforms_.size();
         }
 
         bool init_result = false;

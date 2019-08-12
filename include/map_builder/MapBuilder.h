@@ -46,7 +46,8 @@ struct MapBuilderConfig {
   float min_match_sq_dis = 1.0;
   float min_plane_dis = 0.2;
 };
-
+  ofstream ofile;
+  
 class MapBuilder : public PointMapping {
  public:
   MapBuilder() = delete;

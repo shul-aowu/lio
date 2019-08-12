@@ -402,8 +402,7 @@ bool ImuInitializer::EstimateExtrinsicRotation(CircularBuffer<PairTimeLaserTrans
 
   Transform transform_bl = transform_lb.inverse();
   Eigen::Quaterniond rot_bl = transform_bl.rot.template cast<double>();
-  //size_t window_size = all_laser_transforms.size() - 1;
-  size_t window_size = 50;
+  size_t window_size = all_laser_transforms.size() - 1;
   //0614: QN*q(cb)=0   A == Q;
   Eigen::MatrixXd A(window_size * 4, 4);
 
@@ -411,7 +410,6 @@ bool ImuInitializer::EstimateExtrinsicRotation(CircularBuffer<PairTimeLaserTrans
     //0614: two imu/laser pair;
     PairTimeLaserTransform &laser_trans_i = all_laser_transforms[i];
     PairTimeLaserTransform &laser_trans_j = all_laser_transforms[i + 1];
-
     //0614: Quaternion frame transform     ..
     Eigen::Quaterniond delta_qij_imu = laser_trans_j.second.pre_integration->delta_q_;
     //IMU经过预积分得到的旋转矩阵

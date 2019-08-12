@@ -1306,7 +1306,7 @@ void PointMapping::PublishResults() {
 //  odom_aft_mapped_.twist.twist.linear.y = transform_bef_mapped_.pos.y();
 //  odom_aft_mapped_.twist.twist.linear.z = transform_bef_mapped_.pos.z();
   pub_odom_aft_mapped_.publish(odom_aft_mapped_);
-
+  
   aft_mapped_trans_.stamp_ = time_laser_odometry_;
   aft_mapped_trans_.setRotation(tf::Quaternion(geo_quat.x, geo_quat.y, geo_quat.z, geo_quat.w));
   aft_mapped_trans_.setOrigin(tf::Vector3(transform_aft_mapped_.pos.x(),

@@ -239,14 +239,14 @@ void MapBuilder::PublishMapBuilderResults() {
   odom_aft_mapped_.pose.pose.position.y = transform_aft_mapped_.pos.y();
   odom_aft_mapped_.pose.pose.position.z = transform_aft_mapped_.pos.z();
 //0703
-//   Eigen::Quaterniond x;
-// x={geo_quat.w,geo_quat.x,geo_quat.y,geo_quat.z};
-// Eigen::Vector3d euler_angles1=x.toRotationMatrix().eulerAngles(2,1,0);
-// float r1,p1,y1;
-//     r1=euler_angles1[2]*180/3.1415926;
-//     p1=euler_angles1[1]*180/3.1415926;
-//     y1=euler_angles1[0]*180/3.1415926;
-//     LOG(INFO)<<"euler_rpy:"<<r1<<","
+  Eigen::Quaterniond x;
+  x={geo_quat.w,geo_quat.x,geo_quat.y,geo_quat.z};
+  Eigen::Vector3d euler_angles1=x.toRotationMatrix().eulerAngles(2,1,0);
+  float r1,p1,y1;
+  r1=euler_angles1[0]*180/3.1415926;
+  p1=euler_angles1[1]*180/3.1415926;
+  y1=euler_angles1[2]*180/3.1415926;
+//   LOG(INFO)<<"euler_rpy:"<<r1<<","
 // 		                <<p1<<","
 // 				<<y1<<",";
 //  odom_aft_mapped_.twist.twist.angular.x = transform_bef_mapped_.rot.x();
@@ -255,6 +255,17 @@ void MapBuilder::PublishMapBuilderResults() {
 //  odom_aft_mapped_.twist.twist.linear.x = transform_bef_mapped_.pos.x();
 //  odom_aft_mapped_.twist.twist.linear.y = transform_bef_mapped_.pos.y();
 //  odom_aft_mapped_.twist.twist.linear.z = transform_bef_mapped_.pos.z();
+  
+  ofile.open("/home/uisee/catkin_ws/src/trajactory.txt",ofstream::app);
+  ofile<<odom_aft_mapped_.header.stamp<<","
+       <<odom_aft_mapped_.pose.pose.position.x<<","
+       <<odom_aft_mapped_.pose.pose.position.y<<","
+       <<odom_aft_mapped_.pose.pose.position.z<<","
+       <<r1<<","
+       <<p1<<","
+       <<y1<<","
+       <<std::endl;
+  ofile.close();
   pub_odom_aft_mapped_.publish(odom_aft_mapped_);
 
   aft_mapped_trans_.stamp_ = time_laser_odometry_;
